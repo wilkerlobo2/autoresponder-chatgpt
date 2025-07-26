@@ -9,17 +9,15 @@ app = Flask(__name__)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Webhook do AutoResponder com ChatGPT está online! 🤖"
-
 @app.route("/webhook", methods=["POST"])
 def responder():
     data = request.get_json()
-    mensagem = data.get("message")  # <-- recebendo diretamente
+    query = data.get("query", {})
+    mensagem = query.get("message")
+    sender = query.get("sender")
 
     if not mensagem:
-        return jsonify({"erro": "Nenhuma mensagem recebida"}), 400
+        return jsonify({"replies": ["Mensagem não recebida."]})
 
     try:
         resposta = client.chat.completions.create(
@@ -29,9 +27,8 @@ def responder():
             max_tokens=200
         )
         texto = resposta.choices[0].message.content.strip()
-        return jsonify({"replies": [texto]})
+        return jsonify({"replies": [{"message": texto}]})
     except Exception as e:
-        return jsonify({"erro": str(e)}), 500
-
+        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]})
 if __name__ == "__main__":
     app.run()
