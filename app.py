@@ -12,11 +12,12 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 @app.route("/webhook", methods=["POST"])
 def responder():
     data = request.get_json()
-    mensagem = data.get("message")
-    sender = data.get("sender")
+    query = data.get("query", {})
+    mensagem = query.get("message")
+    sender = query.get("sender")
 
     if not mensagem:
-        return jsonify({"error": "No message received"}), 400
+        return jsonify({"replies": [{"message": "Mensagem não recebida."}]})
 
     try:
         resposta = openai.ChatCompletion.create(
@@ -25,7 +26,10 @@ def responder():
             temperature=0.7,
             max_tokens=200
         )
-        texto = resposta.choices[0].message["content"].strip()
+        texto = resposta["choices"][0]["message"]["content"].strip()
         return jsonify({"replies": [{"message": texto}]})
     except Exception as e:
-        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]})
+        return jsonify({"replies": [{"message": f"Erro: {str(e)}"}]})
+
+if __name__ == "__main__":
+    app.run()
