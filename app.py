@@ -16,24 +16,8 @@ def home():
 @app.route("/webhook", methods=["POST"])
 def responder():
     data = request.get_json()
-    query = data.get("query", {})
-    mensagem = query.get("message")
-    sender = query.get("sender")
+    mensagem = data.get("message")  # <-- recebendo diretamente
 
-    if not mensagem:
-        return jsonify({"erro": "Nenhuma mensagem recebida"})
-
-    try:
-        resposta = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": mensagem}],
-            temperature=0.7,
-            max_tokens=200
-        )
-        texto = resposta.choices[0].message.content
-        return jsonify({"replies": [texto]})
-    except Exception as e:
-        return jsonify({"erro": str(e)})
     if not mensagem:
         return jsonify({"erro": "Nenhuma mensagem recebida"}), 400
 
@@ -45,8 +29,7 @@ def responder():
             max_tokens=200
         )
         texto = resposta.choices[0].message.content.strip()
-        return jsonify({"response": texto})
-
+        return jsonify({"replies": [texto]})
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
