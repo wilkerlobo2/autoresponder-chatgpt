@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from openai import OpenAI
+import openai
 import os
 from dotenv import load_dotenv
 
@@ -7,7 +7,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/webhook", methods=["POST"])
 def responder():
@@ -17,18 +17,23 @@ def responder():
     sender = query.get("sender")
 
     if not mensagem:
-        return jsonify({"replies": ["Mensagem não recebida."]})
+        return jsonify({"replies": [{"message": "Mensagem não recebida."}]}), 400
 
     try:
-        resposta = client.chat.completions.create(
+        resposta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": mensagem}],
             temperature=0.7,
             max_tokens=200
         )
-        texto = resposta.choices[0].message.content.strip()
+        texto = resposta["choices"][0]["message"]["content"].strip()
         return jsonify({"replies": [{"message": texto}]})
     except Exception as e:
-        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]})
+        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]}), 500
+
+@app.route("/", methods=["GET"])
+def home():
+    return "AutoResponder ChatGPT Flask App is running"
+
 if __name__ == "__main__":
     app.run()
