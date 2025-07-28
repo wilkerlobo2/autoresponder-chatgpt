@@ -1,12 +1,11 @@
+import os
 from flask import Flask, request, jsonify
 from openai import OpenAI
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/", methods=["GET"])
@@ -33,4 +32,7 @@ def responder():
         texto = resposta.choices[0].message.content.strip()
         return jsonify({"replies": [{"message": texto}]})
     except Exception as e:
-        return jsonify({"replies
+        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]})
+
+if __name__ == "__main__":
+    app.run()
