@@ -14,12 +14,12 @@ def home():
 
 @app.route("/webhook", methods=["POST"])
 def responder():
-    data = request.get_json()
+    data = request.get_json(force=True)  # <--- force=True ajuda com alguns testes
     print("DADOS RECEBIDOS:", data)
 
     if not data or "query" not in data:
         print("FALHA: JSON inválido.")
-        return jsonify({"replies": [{"message": "FALHA: JSON inválido."}]}), 400
+        return jsonify({"replies": [{"message": "JSON inválido."}]}), 400
 
     query = data.get("query", {})
     mensagem = query.get("message")
@@ -30,7 +30,7 @@ def responder():
 
     if not mensagem:
         print("FALHA: Mensagem não recebida.")
-        return jsonify({"replies": [{"message": "FALHA: Mensagem não recebida."}]}), 400
+        return jsonify({"error": "No message received"}), 400
     try:
         resposta = openai.Chat.Completion.create(
             model="gpt-3.5-turbo",
