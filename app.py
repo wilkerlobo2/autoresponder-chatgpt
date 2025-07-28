@@ -32,7 +32,7 @@ def responder():
         return jsonify({"replies": [{"message": "Mensagem não recebida."}]}), 400
 
     try:
-        resposta = openai.ChatCompletion.create(
+        resposta = openai.Chat.Completion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": mensagem}],
             temperature=0.7,
