@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from openai import OpenAI
 import os
+import logging
 
 app = FastAPI()
 
@@ -16,7 +17,7 @@ async def webhook(request: Request):
         sender = data.get("sender")
 
         if not message or not sender:
-            return JSONResponse(status_code=400, content={"error": "Dados incompletos"})
+            return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente"})
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -26,8 +27,9 @@ async def webhook(request: Request):
             ]
         )
 
-        reply = response.choices[0].message.content
+        reply = response.choices[0].message.content.strip()
         return {"reply": reply}
 
     except Exception as e:
-    raise e  # Isso exibe o erro completo nos logs do Render
+        logging.exception("❌ Erro inesperado no webhook")
+        return JSONResponse(status_code=500, content={"error": "Erro interno no servidor"})
