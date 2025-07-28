@@ -1,13 +1,48 @@
+import os
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+import openai
+
+load_dotenv()
+
+app = Flask(__name__)
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+@app.route("/", methods=["GET"])
+def home():
+    return "AutoResponder ChatGPT Flask App is running"
+
 @app.route("/webhook", methods=["POST"])
 def responder():
+    data = request.get_json()
+    print("DADOS RECEBIDOS:", data)
+
+    if not data or "query" not in data:
+        return jsonify({"error": "Invalid JSON format"}), 400
+
+    query = data.get("query", {})
+    mensagem = query.get("message", "")
+    sender = query.get("sender", "")
+
+    print("MENSAGEM:", mensagem)
+    print("SENDER:", sender)
+
+    if not mensagem:
+        return jsonify({"error": "No message received"}), 400
+
     try:
-        data = request.get_data(as_text=True)  # Recebe como texto bruto
-        print("DADOS BRUTOS RECEBIDOS:", data)
+        resposta = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": mensagem}],
+            temperature=0.7,
+            max_tokens=200
+        )
+        texto = resposta.choices[0].message.content.strip()
+        return jsonify({"replies": [{"message": texto}]})
 
-        json_data = request.get_json(force=True)
-        print("DADOS JSON PARSEADOS:", json_data)
-
-        return jsonify({"debug": json_data})
     except Exception as e:
-        print("ERRO AO PROCESSAR:", str(e))
-        return jsonify({"error": str(e)}), 400
+        print("ERRO GPT:", str(e))
+        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]}), 500
+
+if __name__ == "__main__":
+    app.run()
