@@ -1,48 +1,33 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from openai import OpenAI
 import os
-from flask import Flask, request, jsonify
-from dotenv import load_dotenv
-import openai
 
-load_dotenv()
+app = FastAPI()
 
-app = Flask(__name__)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@app.route("/", methods=["GET"])
-def home():
-    return "AutoResponder ChatGPT Flask App is running"
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    message = data.get("message")
+    sender = data.get("sender")
 
-@app.route("/webhook", methods=["POST"])
-def responder():
-    data = request.get_json()
-    print("DADOS RECEBIDOS:", data)
-
-    if not data or "query" not in data:
-        return jsonify({"error": "Invalid JSON format"}), 400
-
-    query = data.get("query", {})
-    mensagem = query.get("message", "")
-    sender = query.get("sender", "")
-
-    print("MENSAGEM:", mensagem)
-    print("SENDER:", sender)
-
-    if not mensagem:
-        return jsonify({"error": "No message received"}), 400
+    if not message or not sender:
+        return JSONResponse(status_code=400, content={"error": "Campos 'message' e 'sender' são obrigatórios."})
 
     try:
-        resposta = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": mensagem}],
-            temperature=0.7,
-            max_tokens=200
+            messages=[
+                {"role": "system", "content": "Você é um assistente útil."},
+                {"role": "user", "content": message}
+            ]
         )
-        texto = resposta.choices[0].message.content.strip()
-        return jsonify({"replies": [{"message": texto}]})
+
+        reply = response.choices[0].message.content.strip()
+
+        return {"reply": reply}
 
     except Exception as e:
-        print("ERRO GPT:", str(e))
-        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]}), 500
-
-if __name__ == "__main__":
-    app.run()
+        return JSONResponse(status_code=500, content={"error": str(e)})
