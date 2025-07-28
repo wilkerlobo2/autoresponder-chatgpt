@@ -12,8 +12,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 def home():
     return "AutoResponder ChatGPT Flask App is running"
 
-
-    @app.route("/webhook", methods=["POST"])
+@app.route("/webhook", methods=["POST"])
 def responder():
     data = request.get_json()
     print("DADOS RECEBIDOS:", data)
@@ -45,5 +44,6 @@ def responder():
     except Exception as e:
         print("ERRO GPT:", str(e))
         return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]}), 500
+
 if __name__ == "__main__":
     app.run()
