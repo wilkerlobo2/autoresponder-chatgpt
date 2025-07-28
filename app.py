@@ -15,7 +15,7 @@ async def webhook(request: Request):
     sender = data.get("sender")
 
     if not message or not sender:
-        return JSONResponse(status_code=400, content={"error": "Mensagem e remetente são obrigatórios."})
+        return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente."})
 
     try:
         response = client.chat.completions.create(
@@ -27,7 +27,6 @@ async def webhook(request: Request):
         )
         reply = response.choices[0].message.content
         return {"reply": reply}
-    
+
     except Exception as e:
-        # Mostra o erro detalhado no retorno para facilitar o debug
-        return JSONResponse(status_code=500, content={"error": str(e)
+        return JSONResponse(status_code=500, content={"error": str(e)})
