@@ -30,4 +30,4 @@ async def webhook(request: Request):
     
     except Exception as e:
         # Mostra o erro detalhado no retorno para facilitar o debug
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": str(e)
