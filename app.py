@@ -10,14 +10,14 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    data = await request.json()
-    message = data.get("message")
-    sender = data.get("sender")
-
-    if not message or not sender:
-        return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente."})
-
     try:
+        data = await request.json()
+        message = data.get("message")
+        sender = data.get("sender")
+
+        if not message or not sender:
+            return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente"})
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -25,8 +25,10 @@ async def webhook(request: Request):
                 {"role": "user", "content": message}
             ]
         )
-        reply = response.choices[0].message.content
+
+        reply = response.choices[0].message.content.strip()
         return {"reply": reply}
 
     except Exception as e:
+        print("❌ Erro no servidor:", str(e))  # Vai aparecer nos logs do Render
         return JSONResponse(status_code=500, content={"error": str(e)})
