@@ -16,8 +16,11 @@ def home():
 def responder():
     data = request.get_json()
 
-    # Pega os dados dentro de "query", conforme estrutura do AutoResponder
-    query = data.get("query", {})
+    # Certifique-se de que veio algo
+    if not data or "query" not in data:
+        return jsonify({"replies": [{"message": "JSON inválido."}]}), 400
+
+    query = data["query"]
     mensagem = query.get("message")
     sender = query.get("sender")
 
@@ -33,6 +36,7 @@ def responder():
         )
         texto = resposta.choices[0].message.content.strip()
         return jsonify({"replies": [{"message": texto}]})
+
     except Exception as e:
         return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]}), 500
 
