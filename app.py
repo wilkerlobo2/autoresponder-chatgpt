@@ -18,7 +18,7 @@ async def webhook(request: Request):
         return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente."})
 
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Você é um assistente útil."},
