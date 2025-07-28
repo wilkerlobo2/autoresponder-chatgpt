@@ -16,12 +16,13 @@ def home():
 def responder():
     data = request.get_json()
 
-    # Aqui já pega direto do JSON simples
-    mensagem = data.get("message")
-    sender = data.get("sender")
+    # Pega os dados dentro de "query", conforme estrutura do AutoResponder
+    query = data.get("query", {})
+    mensagem = query.get("message")
+    sender = query.get("sender")
 
     if not mensagem:
-        return jsonify({"replies": [{"message": "Mensagem não recebida."}]})
+        return jsonify({"replies": [{"message": "Mensagem não recebida."}]}), 400
 
     try:
         resposta = openai.ChatCompletion.create(
@@ -33,7 +34,7 @@ def responder():
         texto = resposta.choices[0].message.content.strip()
         return jsonify({"replies": [{"message": texto}]})
     except Exception as e:
-        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]})
+        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]}), 500
 
 if __name__ == "__main__":
     app.run()
