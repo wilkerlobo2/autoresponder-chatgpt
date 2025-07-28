@@ -1,12 +1,12 @@
 import os
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-import openai  # ✅ Correto para versões 1.0 ou superiores
+import openai
 
 load_dotenv()
 
 app = Flask(__name__)
-openai.api_key = os.getenv("OPENAI_API_KEY")  # ✅ Corrigido
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/", methods=["GET"])
 def home():
@@ -15,15 +15,16 @@ def home():
 @app.route("/webhook", methods=["POST"])
 def responder():
     data = request.get_json()
-    query = data.get("query", {})
-    mensagem = query.get("message")
-    sender = query.get("sender")
+
+    # Aqui já pega direto do JSON simples
+    mensagem = data.get("message")
+    sender = data.get("sender")
 
     if not mensagem:
         return jsonify({"replies": [{"message": "Mensagem não recebida."}]})
 
     try:
-        resposta = openai.ChatCompletion.create(  # ✅ Corrigido
+        resposta = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": mensagem}],
             temperature=0.7,
