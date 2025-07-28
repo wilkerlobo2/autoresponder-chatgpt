@@ -1,12 +1,12 @@
 import os
 from flask import Flask, request, jsonify
-from openai import OpenAI
 from dotenv import load_dotenv
+import openai  # ✅ Correto para versões 1.0 ou superiores
 
 load_dotenv()
 
 app = Flask(__name__)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")  # ✅ Corrigido
 
 @app.route("/", methods=["GET"])
 def home():
@@ -23,7 +23,7 @@ def responder():
         return jsonify({"replies": [{"message": "Mensagem não recebida."}]})
 
     try:
-        resposta = client.chat.completions.create(
+        resposta = openai.ChatCompletion.create(  # ✅ Corrigido
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": mensagem}],
             temperature=0.7,
