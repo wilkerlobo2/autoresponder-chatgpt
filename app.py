@@ -19,18 +19,18 @@ def responder():
 
     if not data or "query" not in data:
         print("FALHA: JSON inválido.")
-        return jsonify({"replies": [{"message": "JSON inválido."}]}), 400
+        return jsonify({"replies": [{"message": "FALHA: JSON inválido."}]}), 400
 
-    query = data["query"]
+    query = data.get("query", {})
     mensagem = query.get("message")
     sender = query.get("sender")
+
     print("MENSAGEM:", mensagem)
     print("SENDER:", sender)
 
     if not mensagem:
         print("FALHA: Mensagem não recebida.")
-        return jsonify({"replies": [{"message": "Mensagem não recebida."}]}), 400
-
+        return jsonify({"replies": [{"message": "FALHA: Mensagem não recebida."}]}), 400
     try:
         resposta = openai.Chat.Completion.create(
             model="gpt-3.5-turbo",
