@@ -1,13 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import openai
+from openai import OpenAI
 import os
 
 app = FastAPI()
 
-# Define a chave da API
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -18,7 +16,7 @@ async def webhook(request: Request):
         return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente."})
 
     try:
-        response = openai.chat.completion.create(
+        response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Você é um assistente útil."},
