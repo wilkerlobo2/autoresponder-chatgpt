@@ -30,5 +30,4 @@ async def webhook(request: Request):
         return {"reply": reply}
 
     except Exception as e:
-        print("❌ Erro no servidor:", str(e))  # Isso vai aparecer nos logs do Render
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    raise e  # Isso exibe o erro completo nos logs do Render
