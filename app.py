@@ -16,7 +16,7 @@ async def webhook(request: Request):
         sender = data.get("sender")
 
         if not message or not sender:
-            return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente"})
+            return JSONResponse(status_code=400, content={"error": "Dados incompletos"})
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -26,9 +26,9 @@ async def webhook(request: Request):
             ]
         )
 
-        reply = response.choices[0].message.content.strip()
+        reply = response.choices[0].message.content
         return {"reply": reply}
 
     except Exception as e:
-        print("❌ Erro no servidor:", str(e))  # Vai aparecer nos logs do Render
+        print("❌ Erro no servidor:", str(e))  # Isso vai aparecer nos logs do Render
         return JSONResponse(status_code=500, content={"error": str(e)})
