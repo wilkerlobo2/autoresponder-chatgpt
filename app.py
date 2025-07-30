@@ -1,11 +1,11 @@
 import os
 from flask import Flask, request, jsonify
-import openai
+from openai import OpenAI
 
 app = Flask(__name__)
 
-# Pega a chave da OpenAI do ambiente (você vai configurar isso na Render depois)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Cria o cliente OpenAI com a chave da API do ambiente
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/", methods=["GET"])
 def home():
@@ -14,27 +14,31 @@ def home():
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    user_message = data.get("message", "")
+    user_message = data.get("senderMessage", "")  # Usa "senderMessage" que é o padrão do AutoReply
 
     if not user_message:
         return jsonify({"error": "Mensagem não encontrada"}), 400
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # ou "gpt-4", se quiser
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Você é um atendente educado e prestativo."},
                 {"role": "user", "content": user_message}
             ]
         )
+        reply = response.choices[0].message.content.strip()
 
-        reply = response.choices[0].message["content"].strip()
-        return jsonify({"reply": reply})
+        # Retorno esperado pelo AutoReply
+        return jsonify({
+            "data": [
+                {"message": reply}
+            ]
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port)
-
+    app.run(host="0.0.0.0", port=port)
