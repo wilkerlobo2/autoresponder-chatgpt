@@ -14,7 +14,7 @@ def home():
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    user_message = data.get("senderMessage", "")
+    user_message = data.get("message", "")
 
     if not user_message:
         return jsonify({"error": "Mensagem não encontrada"}), 400
