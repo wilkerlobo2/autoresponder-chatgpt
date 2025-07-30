@@ -5,30 +5,34 @@ app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
 def home():
-    return "Webhook do ChatGPT ativo. Use POST para enviar mensagens."
+    return "Webhook do AutoResponder está ativo. Use POST para enviar mensagens."
 
 @app.route("/", methods=["POST"])
 def webhook():
-    data = request.get_json()
-    user_message = data.get("senderMessage", "")  # Usa 'senderMessage' que é o padrão do AutoResponder
-
-    if not user_message:
-        return jsonify({"error": "Mensagem não encontrada"}), 400
-
     try:
-        # Resposta simulada (sem usar OpenAI)
-        reply = f"Mensagem recebida: {user_message}"
+        data = request.get_json()
+        user_message = data.get("query", {}).get("message", "")
+        sender = data.get("query", {}).get("sender", "")
+
+        if not user_message:
+            return jsonify({"replies": [{"message": "Mensagem não encontrada"}]}), 400
+
+        # Resposta simples de teste
+        reply_1 = f"Olá {sender}, recebi sua mensagem: {user_message}"
+        reply_2 = "Tudo certo com o webhook!"
 
         return jsonify({
-            "data": {
-                "message": reply
-            }
+            "replies": [
+                {"message": reply_1},
+                {"message": reply_2}
+            ]
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"replies": [{"message": f"Erro no servidor: {str(e)}"}]}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
