@@ -1,82 +1,71 @@
-import os
 from flask import Flask, request, jsonify
-from openai import OpenAI
 
 app = Flask(__name__)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-@app.route("/", methods=["GET"])
-def home():
-    return "Webhook do ChatGPT ativo. Use POST para enviar mensagens."
 
 @app.route("/", methods=["POST"])
 def webhook():
-    try:
-        data = request.get_json()
-        user_message = data.get("query", {}).get("message", "")
-        sender = data.get("query", {}).get("sender", "cliente")
+    data = request.get_json()
+    message = data["query"]["message"].lower()
+    sender = data["query"]["sender"]
 
-        if not user_message:
-            return jsonify({"error": "Mensagem não encontrada"}), 400
+    respostas = []
 
-        # Verifica regras personalizadas primeiro
-        resposta = responder_regra_manutencao(user_message)
-        if resposta:
-            return jsonify({"replies": [{"message": resposta}]})
+    # Respostas por modelo de TV
+    if "roku" in message:
+        respostas.append({ "message": f"Olá {sender}, sua TV Roku é compatível com o app *Xcloud (verde com preto)*.\nVocê já tem ele instalado?" })
+        respostas.append({ "message": "Se já tiver, digite *91* aqui no WhatsApp para gerar seu login." })
 
-        # Se não tiver regra, responde com IA
-        completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Você é um atendente de suporte técnico para uma empresa de IPTV."},
-                {"role": "user", "content": user_message}
-            ]
-        )
+    elif "samsung" in message:
+        respostas.append({ "message": f"Olá {sender}, sua TV Samsung é compatível com o app *Xcloud (verde com preto)* (caso seja modelo novo).\nVocê já tem ele instalado?" })
+        respostas.append({ "message": "Se já tiver, digite *91* aqui no WhatsApp para gerar seu login." })
 
-        resposta_ia = completion.choices[0].message.content.strip()
+    elif "lg" in message:
+        respostas.append({ "message": f"Olá {sender}, sua TV LG é compatível com o app *Xcloud (verde com preto)*.\nVocê já tem ele instalado?" })
+        respostas.append({ "message": "Se já tiver, digite *91* aqui no WhatsApp para gerar seu login." })
 
-        return jsonify({"replies": [{"message": resposta_ia}]})
+    elif "philco" in message or "philips" in message or "aoc" in message:
+        respostas.append({ "message": f"Olá {sender}, sua TV precisa do app *OTT Player* ou *Duplecast*.\nVocê pode me enviar uma foto do QR Code do app instalado?" })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    elif "smartone" in message:
+        respostas.append({ "message": "Ótimo! Como você já tem o *SmartOne*, me envie o *MAC* da TV para liberar o acesso." })
 
-def responder_regra_manutencao(msg):
-    msg = msg.lower()
+    elif "duplecast" in message or "ott" in message:
+        respostas.append({ "message": "Perfeito! Me envie a *foto do QR Code* do app para eu gerar seu acesso." })
 
-    if "roku" in msg:
-        return "Vamos testar com o app Xcloud na sua Roku. Se não funcionar, usamos o OTT Player."
-    if "samsung" in msg and "nova" in msg:
-        return "Use o app Xcloud. Caso não funcione, envie a foto do QR code do Duplecast."
-    if "lg" in msg:
-        return "Vamos usar o app Xcloud. Se não funcionar, você pode testar com Duplecast (QR code) ou SmartOne (MAC)."
-    if "android" in msg or "tv box" in msg:
-        return "Perfeito, vamos usar o app Xtream IPTV Player. Aguarde que já vou gerar o login."
-    if "philips" in msg or "aoc" in msg:
-        return "Instale o OTT Player ou Duplecast. Me envie o QR code do app escolhido."
-    if "computador" in msg or "pc" in msg:
-        return "Você pode assistir pelo PC. Te envio o link e login. Qual navegador você usa?"
-    if "iphone" in msg or "ios" in msg:
-        return "Baixe o app Smarters Player Lite. Vou gerar seu login!"
-    if msg in ["oi", "olá", "bom dia", "boa tarde", "boa noite"]:
-        return "Olá! Tudo certo 😊 Me diga o modelo da sua TV ou aparelho que vou te orientar certinho."
+    elif "android" in message or "tv box" in message or "toshiba" in message or "vizzion" in message or "vidaa" in message:
+        respostas.append({ "message": f"Sua TV é compatível com vários apps. Digite um dos números: *221*, *225*, *500* ou *555* para gerar o login." })
 
-    palavras_pagamento = ["plano", "planos", "valor", "valores", "preço", "preços", "mensalidade", "pagar", "pagamento", "pix", "cartão"]
-    if any(p in msg for p in palavras_pagamento):
-        return (
-            "*Planos de Assinatura:*\n"
-            "✅ R$ 26,00 - 1 mês\n"
-            "✅ R$ 47,00 - 2 meses\n"
-            "✅ R$ 68,00 - 3 meses\n"
-            "✅ R$ 129,00 - 6 meses\n"
-            "✅ R$ 185,00 - 1 ano\n\n"
-            "*Formas de pagamento:*\n"
-            "🔹 *PIX:* 41.638.407/0001-26 (Banco C6)\n"
-            "🔹 *CNPJ:* Axel Castelo\n\n"
-            "💳 Para pagar com *cartão*, use o link:\nhttps://link.mercadopago.com.br/cplay"
-        )
+    elif "iphone" in message or "ios" in message:
+        respostas.append({ "message": "Baixe o app *Smarters Player Lite* na App Store. Depois digite *224* aqui no WhatsApp." })
 
-    return None
+    elif "computador" in message or "pc" in message or "notebook" in message:
+        respostas.append({ "message": "Acesse o app via navegador. Quando estiver pronto, digite *224* para gerar o login." })
+
+    elif "fire stick" in message or "amazon" in message:
+        respostas.append({ "message": "Veja este tutorial para instalar: [link do vídeo]. Depois digite *221* aqui no WhatsApp." })
+
+    elif "quero testar" in message:
+        respostas.append({ "message": "Beleza! Me diga qual é o modelo da sua TV para te passar o app correto primeiro." })
+
+    elif "deu certo" in message or "funcionou" in message:
+        respostas.append({ "message": "Que bom que funcionou! O teste dura cerca de 3 horas. 😉" })
+
+    elif "planos" in message or "valor" in message or "preço" in message:
+        respostas.append({ "message": "✅ *Planos disponíveis:* \n\nR$ 26,00 – 1 mês\nR$ 47,00 – 2 meses\nR$ 68,00 – 3 meses\nR$ 129,00 – 6 meses\nR$ 185,00 – 1 ano" })
+        respostas.append({ "message": "*💳 Pagamento via cartão:*\nhttps://link.mercadopago.com.br/cplay" })
+        respostas.append({ "message": "*📌 PIX:*\n41.638.407/0001-26\nBanco: C6\nCNPJ: Axel Castelo" })
+
+    elif "teste" in message:
+        respostas.append({ "message": "Certo, vamos iniciar seu teste! Me informe primeiro o modelo da sua TV para te passar o app correto." })
+
+    elif "não funcionou" in message or "não deu certo" in message:
+        respostas.append({ "message": "Vamos resolver! Me envie uma foto da tela da TV ou do app para que eu possa identificar o problema." })
+
+    else:
+        respostas.append({ "message": f"Olá {sender}, recebi sua mensagem: {message}" })
+        respostas.append({ "message": "Estou aqui para te ajudar com IPTV. Me diga qual o modelo da sua TV ou envie uma foto do menu de aplicativos." })
+
+    return jsonify({ "replies": respostas })
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run()
