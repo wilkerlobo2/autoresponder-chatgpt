@@ -20,24 +20,18 @@ def webhook():
         return jsonify({"error": "Mensagem não encontrada"}), 400
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Você é um atendente educado e prestativo."},
-                {"role": "user", "content": user_message}
-            ]
-        )
-        reply = response.choices[0].message.content.strip()
+    # Resposta simulada (sem usar OpenAI)
+    reply = f"Mensagem recebida: {user_message}"
 
-        # Retorno esperado pelo AutoReply
-        return jsonify({
-            "data": [
-                {"message": reply}
-            ]
-        })
+    return jsonify({
+        "data": {
+            "message": reply
+        }
+    })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+except Exception as e:
+    return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
