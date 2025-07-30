@@ -3,83 +3,58 @@ import os
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Servidor ativo!"
-
-@app.route("/", methods=["POST"])
+@app.route('/', methods=['GET', 'POST'])  # Agora aceita POST e GET
 def webhook():
+    if request.method == 'GET':
+        return "Webhook ativo!"
+
     data = request.get_json()
-    mensagem = data.get("query", {}).get("message", "").lower()
 
-    resposta = ""
+    if not data:
+        return jsonify({"replies": [{"message": "Erro: nenhuma informação recebida."}]}), 400
 
-    if "smartone" in mensagem:
-        resposta = "Ótimo! Me envie o MAC da TV que já preparo seu teste."
+    message = data.get('query', {}).get('message', '').lower()
     
-    elif "duplecast" in mensagem or "ott player" in mensagem:
-        resposta = "Perfeito! Me envie o QR Code do app que já crio seu acesso."
+    # Lógica inteligente baseada no modelo de TV
+    if any(x in message for x in ['android', 'android tv', 'tv box', 'toshiba', 'vizzion', 'vidaa']):
+        return jsonify({"replies": [{"message": "✅ Baixe o app *Xtream IPTV Player* na Play Store.\n\nDigite o número *555* aqui para gerar seu teste."}]})
 
-    elif any(p in mensagem for p in ["android", "tv android", "tv box", "android tv", "toshiba", "vizzion", "vidaa"]):
-        resposta = (
-            "Para Android TV, TV Box ou modelos Toshiba/Vizzion/Vidaa, baixe o app **Xtream IPTV Player**. "
-            "Depois, digite aqui um dos números: *221*, *225*, *500* ou *555* para gerar seu login de teste."
-        )
+    elif 'samsung' in message:
+        return jsonify({"replies": [{"message": "Sua TV Samsung é modelo *novo* ou *antigo*?"}]})
 
-    elif "samsung" in mensagem and "nova" in mensagem:
-        resposta = (
-            "Para Samsung modelo novo, baixe primeiro o app **Xcloud (verde com preto)** e veja se funciona. "
-            "Se não funcionar, baixe o **Duplecast** e me envie a foto do QR Code para gerar o teste."
-        )
+    elif 'samsung nova' in message:
+        return jsonify({"replies": [{"message": "✅ Instale o app *Xcloud* (ícone verde e preto).\nDigite o número *91* aqui para gerar seu teste.\nSe não funcionar, vamos tentar o *Duplecast* com QR Code."}]})
 
-    elif "samsung" in mensagem and "antiga" in mensagem:
-        resposta = "Para Samsung modelo antigo, digite o número *88* aqui para gerar seu login."
+    elif 'samsung antiga' in message:
+        return jsonify({"replies": [{"message": "✅ Para Samsung modelo antigo, digite o número *88* para gerar seu teste."}]})
 
-    elif "roku" in mensagem:
-        resposta = (
-            "Para TV Roku, baixe o app **Xcloud (verde com preto)**. Se não funcionar, baixe o **OTT Player** "
-            "e me envie a foto do QR Code para liberar o teste."
-        )
+    elif 'philco' in message:
+        return jsonify({"replies": [{"message": "Sua TV Philco é modelo *antigo* ou *novo*?"}]})
 
-    elif "lg" in mensagem:
-        resposta = (
-            "Para LG, primeiro teste o app **Xcloud (verde com preto)**. Se não funcionar, use o **Duplecast** "
-            "(envie o QR Code) ou o **SmartOne** (me envie o MAC da TV)."
-        )
+    elif 'philco antiga' in message:
+        return jsonify({"replies": [{"message": "✅ Para Philco antiga, digite o número *98* para gerar seu teste."}]})
 
-    elif "philips" in mensagem or "aoc" in mensagem:
-        resposta = "Para Philips ou AOC, use o app **OTT Player** ou **Duplecast** e me envie o QR Code."
+    elif 'lg' in message:
+        return jsonify({"replies": [{"message": "✅ Instale o *Xcloud* (ícone verde com preto). Digite o número *91* para gerar seu teste.\nSe não funcionar, use *Duplecast* (QR code) ou *SmartOne* (com MAC). Se já tiver o app, envie o MAC para ativar."}]})
 
-    elif "philco" in mensagem and "antiga" in mensagem:
-        resposta = "Para Philco modelo antigo, digite o número *98* para gerar o login."
+    elif 'roku' in message:
+        return jsonify({"replies": [{"message": "✅ Primeiro instale o *Xcloud* (ícone verde com preto). Digite *91* aqui para gerar o teste.\nSe não funcionar, instale o *OTT Player* e envie o QR Code."}]})
 
-    elif "computador" in mensagem or "pc" in mensagem or "notebook" in mensagem:
-        resposta = "Para computador, baixe o app no link: https://play.google.com/store/apps/details?id=com.xtream_iptv, depois digite o número *224* para gerar seu login."
+    elif 'philips' in message or 'aoc' in message:
+        return jsonify({"replies": [{"message": "✅ Instale o *OTT Player* ou *Duplecast*.\nPor favor, envie o QR Code para liberar o teste."}]})
 
-    elif "fire stick" in mensagem or "amazon" in mensagem:
-        resposta = "Para Fire Stick/Amazon, siga o vídeo tutorial e depois digite o número *221*."
+    elif 'smartone' in message:
+        return jsonify({"replies": [{"message": "✅ Envie o *MAC address* do app SmartOne para gerar seu teste."}]})
 
-    elif "iphone" in mensagem or "ios" in mensagem:
-        resposta = "Para iPhone/iOS, baixe o app **Smarters Player Lite** na App Store e depois digite o número *224*."
-
-    elif "pagamento" in mensagem or "pagar" in mensagem:
-        resposta = (
-            "*PIX para pagamento:*\n"
-            "`41.638.407/0001-26` (CNPJ – Axel Castelo)\n\n"
-            "*Pagamento por cartão:*\n"
-            "https://link.mercadopago.com.br/cplay\n\n"
-            "*Planos:*\n"
-            "✅ R$26,00 – 1 mês\n"
-            "✅ R$47,00 – 2 meses\n"
-            "✅ R$68,00 – 3 meses\n"
-            "✅ R$129,00 – 6 meses\n"
-            "✅ R$185,00 – 1 ano"
-        )
+    elif 'pagamento' in message or 'pix' in message or 'valor' in message:
+        return jsonify({"replies": [{
+            "message": "💳 *Formas de Pagamento:*\n\n*PIX:* 41.638.407/0001-26\nBanco: C6\nCNPJ: Axel Castelo\n\n💰 *Planos:*\n✅ R$26 - 1 mês\n✅ R$47 - 2 meses\n✅ R$68 - 3 meses\n✅ R$129 - 6 meses\n✅ R$185 - 1 ano\n\n🔗 *Cartão de crédito:* https://link.mercadopago.com.br/cplay"
+        }]})
 
     else:
-        resposta = "Consegue me informar o modelo da sua TV para que eu te envie o app ideal e o número correto para gerar o teste?"
+        return jsonify({"replies": [{"message": "Consegue me informar o modelo da sua TV para que eu te envie o app ideal e o número correto para gerar o teste?"}]})
 
-    return jsonify({"replies": [{"message": resposta}]})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
