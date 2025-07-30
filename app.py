@@ -1,35 +1,38 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from openai import OpenAI
+from flask import Flask, request, jsonify
+import openai
 import os
-import logging
 
-app = FastAPI()
+app = Flask(__name__)
 
-# Inicializa o cliente da OpenAI com a chave da variável de ambiente
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Pega a chave da OpenAI do ambiente (você vai configurar isso na Render depois)
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-@app.post("/webhook")
-async def webhook(request: Request):
+@app.route("/", methods=["GET"])
+def home():
+    return "Webhook do ChatGPT ativo. Use POST para enviar mensagens."
+
+@app.route("/", methods=["POST"])
+def webhook():
+    data = request.get_json()
+    user_message = data.get("message", "")
+
+    if not user_message:
+        return jsonify({"error": "Mensagem não encontrada"}), 400
+
     try:
-        data = await request.json()
-        message = data.get("message")
-        sender = data.get("sender")
-
-        if not message or not sender:
-            return JSONResponse(status_code=400, content={"error": "Mensagem ou remetente ausente"})
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # ou "gpt-4", se quiser
             messages=[
-                {"role": "system", "content": "Você é um assistente útil."},
-                {"role": "user", "content": message}
+                {"role": "system", "content": "Você é um atendente educado e prestativo."},
+                {"role": "user", "content": user_message}
             ]
         )
 
-        reply = response.choices[0].message.content.strip()
-        return {"reply": reply}
+        reply = response.choices[0].message["content"].strip()
+        return jsonify({"reply": reply})
 
     except Exception as e:
-        logging.exception("❌ Erro inesperado no webhook")
-        return JSONResponse(status_code=500, content={"error": "Erro interno no servidor"})
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
