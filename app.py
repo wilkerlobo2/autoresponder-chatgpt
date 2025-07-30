@@ -1,70 +1,55 @@
 from flask import Flask, request, jsonify
+import os
 
 app = Flask(__name__)
 
-@app.route('/', methods=['GET', 'POST'])
-def webhook():
-    data = request.get_json()
+@app.route("/", methods=["GET"])
+def responder():
+    query = request.args.get("query")
+    if not query:
+        return jsonify({"replies": [{"message": "Erro: mensagem não recebida."}]}), 400
 
-    if not data:
-        return jsonify({"replies": [{"message": "Erro: dados ausentes."}]})
+    import json
+    try:
+        query_data = json.loads(query)
+    except:
+        return jsonify({"replies": [{"message": "Erro ao ler os dados da mensagem."}]}), 400
 
-    message = data['query']['message'].lower()
-    sender = data['query']['sender']
+    mensagem = query_data.get("message", "").lower()
+    resposta = []
 
-    replies = []
-
-    # Cliente já tem app instalado
-    if "smartone" in message:
-        replies.append({"message": "Ótimo! Me envie o *MAC* que aparece no SmartOne para gerar seu acesso."})
-
-    elif "duplecast" in message or "ott player" in message:
-        replies.append({"message": "Certo! Por favor, me envie a *foto do QR Code* que aparece no app para ativar."})
-
-    # Identificação por modelo de TV
-    elif "samsung" in message:
-        replies.append({"message": "👉 Baixe o app *Xcloud* (ícone verde e preto) na sua TV Samsung."})
-        replies.append({"message": "Depois de instalar, digite o número *91* aqui no WhatsApp para liberar o teste."})
-
-    elif "lg" in message:
-        replies.append({"message": "👉 Baixe o app *Xcloud* (ícone verde e preto) na sua LG."})
-        replies.append({"message": "Depois digite *91*. Se não funcionar, me envie a *foto do QR Code* do Duplecast ou o *MAC* do SmartOne."})
-
-    elif "roku" in message:
-        replies.append({"message": "👉 Baixe o app *Xcloud* na sua Roku."})
-        replies.append({"message": "Digite o número *91* aqui no WhatsApp. Se não funcionar, me envie o QR Code do OTT Player."})
-
-    elif "android" in message or "tv box" in message or "toshiba" in message or "vizzion" in message or "vidaa" in message:
-        replies.append({"message": "👉 Baixe o app *Xtream IPTV Player* na sua TV Android ou TV Box."})
-        replies.append({"message": "Depois digite *555* aqui para gerar o login automático."})
-
-    elif "philco" in message:
-        replies.append({"message": "Para TV Philco antiga, digite o número *98* aqui para continuar."})
-
-    elif "samsung antiga" in message:
-        replies.append({"message": "Para Samsung modelo antigo, digite *88* aqui no WhatsApp para iniciar o teste."})
-
-    elif "computador" in message:
-        replies.append({"message": "No computador, baixe o app e depois digite *224* aqui para ativar."})
-
-    elif "iphone" in message or "ios" in message:
-        replies.append({"message": "No iPhone, instale o app *Smarters Player Lite* e digite *224* aqui para ativar seu teste."})
-
-    elif "fire stick" in message or "amazon" in message:
-        replies.append({"message": "Assista ao vídeo tutorial de instalação no Fire Stick, e depois digite *221* para continuar."})
-
-    elif "quero pagar" in message or "formas de pagamento" in message or "como pagar" in message:
-        replies.append({"message": "*💳 Formas de pagamento:*"})
-        replies.append({"message": "*PIX (CNPJ):*\n```41.638.407/0001-26```\nBanco C6\nCNPJ: Axel Castelo"})
-        replies.append({"message": "*💳 Cartão:* [Clique aqui para pagar com cartão](https://link.mercadopago.com.br/cplay)"})
-        replies.append({"message": "*Planos disponíveis:*"})
-        replies.append({"message": "✅ R$ 26,00 - 1 mês\n✅ R$47,00 - 2 meses\n✅ R$68,00 - 3 meses\n✅ R$129,00 - 6 meses\n✅ R$185,00 - 1 ano"})
-
-    elif "tempo" in message or "duração" in message or "3 horas" in message:
-        replies.append({"message": "O teste é liberado por tempo limitado para avaliação. 😉"})
-
+    # Verifica modelo de TV
+    if "roku" in mensagem:
+        resposta.append({"message": "Sua TV é Roku ✅\nVamos tentar com o app *Xcloud* (verde com preto).\nDigite o número *91* aqui para iniciar o teste."})
+    elif "lg" in mensagem:
+        if "smartone" in mensagem:
+            resposta.append({"message": "Você já tem o SmartOne instalado.\nPor favor, envie o *MAC* que aparece nele para ativar."})
+        else:
+            resposta.append({"message": "Sua TV é LG ✅\nVamos tentar com o app *Xcloud* (verde com preto).\nDigite o número *91* aqui para iniciar o teste."})
+    elif "samsung" in mensagem:
+        resposta.append({"message": "Sua TV é Samsung ✅\nVamos tentar com o app *Xcloud* (verde com preto).\nDigite o número *91* aqui para iniciar o teste."})
+    elif "android" in mensagem or "tv box" in mensagem or "fire stick" in mensagem:
+        resposta.append({"message": "Para Android, TV Box ou Fire Stick:\nDigite o número *221* aqui para iniciar o teste."})
+    elif "toshiba" in mensagem or "vizzion" in mensagem or "vidaa" in mensagem:
+        resposta.append({"message": "Para Toshiba, Vizzion ou Vidaa:\nDigite o número *221* aqui para iniciar o teste."})
+    elif "computador" in mensagem or "pc" in mensagem or "notebook" in mensagem:
+        resposta.append({"message": "Para usar no computador 💻, baixe o app e digite o número *224* aqui para iniciar o teste."})
+    elif "iphone" in mensagem or "ios" in mensagem:
+        resposta.append({"message": "Para iPhone 📱, baixe o app Smarters Player Lite e digite o número *224* para testar."})
+    elif "philips" in mensagem or "aoc" in mensagem:
+        resposta.append({"message": "Sua TV é Philips ou AOC ✅\nVamos testar com *OTT Player* ou *Duplecast*.\nPor favor, envie uma foto do QR code do app para ativar."})
+    elif "philco" in mensagem:
+        resposta.append({"message": "Sua TV é Philco antiga ✅\nDigite o número *98* aqui para iniciar o teste."})
+    elif "quero testar" in mensagem:
+        resposta.append({"message": "Ok! Me diga o modelo da sua TV (Samsung, LG, Roku, etc) para eu indicar o melhor app e gerar o teste ✅"})
+    elif "pagamento" in mensagem or "pix" in mensagem:
+        resposta.append({"message": "💳 Formas de Pagamento:\n\n*PIX:* \n`41.638.407/0001-26`\nBanco: *C6*\nCNPJ: *Axel Castelo*\n\nPara pagar com cartão, use este link:\nhttps://link.mercadopago.com.br/cplay"})
+    elif "planos" in mensagem:
+        resposta.append({"message": "✅ *Planos disponíveis:*\n\n✔️ R$ 26,00 – 1 mês\n✔️ R$ 47,00 – 2 meses\n✔️ R$ 68,00 – 3 meses\n✔️ R$129,00 – 6 meses\n✔️ R$185,00 – 1 ano"})
     else:
-        replies.append({"message": f"Olá {sender}, recebi sua mensagem: *{message}*"})
-        replies.append({"message": "Pode me dizer o modelo da sua TV ou aparelho para eu indicar o aplicativo correto?"})
+        resposta.append({"message": "Olá! Me diga o modelo da sua TV para indicar o melhor app e gerar seu teste gratuito 📺"})
 
-    return jsonify({"replies": replies})
+    return jsonify({"replies": resposta})
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=10000)
