@@ -69,10 +69,11 @@ def gerar_login(webhook):
     except:
         return "⚠️ Erro ao conectar com o servidor de testes."
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["POST"])
 def responder():
-    nome = request.args.get("name", "")
-    msg = request.args.get("message", "").lower()
+    data = request.get_json()
+    nome = data.get("name", "")
+    msg = data.get("message", "").lower()
     resposta = []
 
     # Boas-vindas para novos
