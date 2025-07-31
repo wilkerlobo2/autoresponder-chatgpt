@@ -12,114 +12,122 @@ planos = """📦 Planos disponíveis:
 - R$ 129,00 – 6 meses
 - R$ 185,00 – 1 ano
 
-💳 Pagamento via PIX (CNPJ) ou Cartão."""
+💰 Pagamento via:
+PIX (CNPJ): 00.000.000/0001-00
+Cartão: https://seulinkdepagamento"""
 
-# Mensagens aleatórias durante o teste
-avisos = [
-    "➡️ Alguns canais só abrem em dias de eventos, como Disney+, HBO Max, Premiere, etc. A transmissão começa minutos antes do evento.",
-    "ℹ️ Se algum canal não abrir, pode ser porque só funciona em horário de jogo, luta ou evento ao vivo.",
-    "💡 Alguns conteúdos como Prime Video ou Paramount+ só ativam no momento do evento, isso é normal.",
-    "🎯 Lembre-se: canais especiais ficam off até o evento começar. Isso economiza recursos e melhora a performance!"
-]
+# Função para escolher número de teste aleatório
+def gerar_numero_teste():
+    return random.choice(['221', '225', '500', '555'])
 
-numeros_login = ['221', '225', '500', '555']
-
-@app.route("/", methods=["POST"])
+@app.route('/', methods=['POST'])
 def responder():
     data = request.get_json()
-    msg = data.get("message", "").lower()
-    nome = data.get("name", "")
-    eh_novo = nome.startswith("+55")
-    
-    # Ignora mensagens com mídia
-    if data.get("type") in ["image", "audio", "video", "document"]:
-        return jsonify({"reply": "Recebi sua mídia! Já já o suporte vai verificar manualmente. 😉"})
+    msg = data.get('message', '').lower()
+    nome = data.get('name', '')
+    eh_novo = nome.startswith('+55')
 
-    # Mensagem inicial para quem pede teste
-    if "teste" in msg or "quero testar" in msg:
+    respostas = []
+
+    # Saudação para novos clientes
+    if 'teste' in msg or 'quero testar' in msg:
         if eh_novo:
-            return jsonify({
-                "reply": "👋 Olá! Que bom ter você aqui. Vamos liberar um teste pra você conhecer nosso serviço.\n\nQual dispositivo você vai usar para testar? (Ex: Android TV, Samsung, Roku, LG, Celular, etc)"
-            })
+            respostas.append("👋 Olá! Que bom ter você aqui. Vamos liberar um teste pra você conhecer nosso serviço.")
+        respostas.append("Me diz qual dispositivo você vai usar pra testar? (Android TV, Samsung, Roku, LG, Celular, etc)")
+        return jsonify({"replies": respostas})
+
+    # Lógica por tipo de TV
+    if 'android' in msg:
+        respostas.append("📲 Para Android TV, TV Box ou modelos Toshiba/Vizzion/Vidaa, baixe o app *Xtream IPTV Player*.")
+        respostas.append("Quando terminar, me avise aqui pra te passar o número de teste.")
+        return jsonify({"replies": respostas})
+
+    if 'samsung' in msg:
+        if 'nova' in msg:
+            respostas.append("📺 Para Samsung nova, baixe o app *Xcloud* (verde com preto). Me avise quando instalar.")
+        elif 'antiga' in msg:
+            respostas.append("✅ Seu modelo é antigo. Digite o número *88* para gerar seu teste.")
         else:
-            return jsonify({
-                "reply": "Ótimo! Qual dispositivo você vai usar para testar? (Ex: Android TV, Samsung, Roku, LG, Celular, etc)"
-            })
+            respostas.append("Seu modelo é novo ou antigo?")
+        return jsonify({"replies": respostas})
 
-    # Exemplo: Android
-    if "android" in msg:
-        return jsonify({
-            "reply": "📲 Para Android TV, TV Box ou modelos Toshiba/Vizzion/Vidaa, baixe o app *Xtream IPTV Player*. Quando terminar, me avise aqui para te passar o número do teste. ⏳"
-        })
+    if 'roku' in msg:
+        respostas.append("📺 Baixe o app *Xcloud* (verde com preto). Se não funcionar, podemos testar o *OTT Player* (envie o QR code).")
+        respostas.append("Me avise quando instalar o Xcloud.")
+        return jsonify({"replies": respostas})
 
-    if "samsung" in msg:
-        if "nova" in msg:
-            return jsonify({
-                "reply": "📺 Recomendo o app *Xcloud* (verde e preto). Se não funcionar, podemos tentar o *Duplecast* (com QR Code).\n\nBaixe o Xcloud e me avise. 😉"
-            })
-        elif "antiga" in msg:
-            return jsonify({
-                "reply": "🔁 Para Samsung antiga, digite o número *88* aqui após instalar o app indicado."
-            })
+    if 'lg' in msg:
+        respostas.append("📺 Para LG, baixe o *Xcloud* primeiro.")
+        respostas.append("Se não funcionar, temos como alternativa o *Duplecast* (com QR) ou *SmartOne* (com MAC).")
+        respostas.append("Me avise quando instalar.")
+        return jsonify({"replies": respostas})
+
+    if 'philco' in msg:
+        if 'antiga' in msg:
+            respostas.append("✅ Seu modelo é antigo. Digite o número *98* para gerar seu teste.")
         else:
-            return jsonify({
-                "reply": "Sua TV Samsung é modelo novo ou antigo? Me avise pra eu indicar o melhor app! 😉"
-            })
+            respostas.append("Seu modelo é antigo ou novo?")
+        return jsonify({"replies": respostas})
 
-    if "roku" in msg:
-        return jsonify({
-            "reply": "📺 Para Roku, use o app *Xcloud*. Se não funcionar, podemos usar o *OTT Player* (com QR Code). Baixe o Xcloud e me avise. 😉"
-        })
+    if 'philips' in msg or 'aoc' in msg:
+        respostas.append("📺 Indico o app *OTT Player* ou *Duplecast*. Me envie o QR code após instalar.")
+        return jsonify({"replies": respostas})
 
-    if "lg" in msg:
-        return jsonify({
-            "reply": "📺 Para LG, comece testando com o *Xcloud*. Se não funcionar, tentamos o *Duplecast* (QR Code) ou *SmartOne* (envie o MAC). Baixe o Xcloud e me avise. 😉"
-        })
+    if 'computador' in msg or 'pc' in msg:
+        respostas.append("💻 Te envio o link do app e depois você digita o número *224* para gerar o teste.")
+        return jsonify({"replies": respostas})
 
-    if "philco" in msg:
-        return jsonify({
-            "reply": "Sua Philco é nova ou antiga? Se for antiga, digite *98*. Se for nova, posso sugerir um app ideal. 😉"
-        })
+    if 'iphone' in msg or 'ios' in msg:
+        respostas.append("📱 Baixe o app *Smarters Player Lite* na App Store. Me avise quando instalar pra te passar o número.")
+        return jsonify({"replies": respostas})
 
-    if "philips" in msg or "aoc" in msg:
-        return jsonify({
-            "reply": "📺 Para Philips ou AOC, recomendo *OTT Player* ou *Duplecast* (com QR Code). Me avise quando instalar! 😉"
-        })
+    if 'fire stick' in msg or 'amazon' in msg:
+        respostas.append("🔥 Para Fire Stick / Amazon, veja esse vídeo tutorial: [seu link aqui]")
+        respostas.append("Depois digite o número *221* para gerar o teste.")
+        return jsonify({"replies": respostas})
 
-    # Cliente avisou que já instalou app
-    if "baixei" in msg or "instalei" in msg or "pronto" in msg:
-        numero = random.choice(numeros_login)
-        agora = datetime.datetime.now()
-        hora_envio = agora.strftime("%H:%M")
-        return jsonify({
-            "reply": f"✅ Perfeito! Digite aqui o número *{numero}* para gerar seu login de teste.\n\n⏱️ Login enviado às {hora_envio}. Daqui 30 minutos vou te perguntar se deu certo. Boa sorte! 🚀"
-        })
+    # Quando cliente já tiver o app instalado
+    if 'smartone' in msg:
+        respostas.append("📟 Me envie o MAC que aparece no app SmartOne para liberar o teste.")
+        return jsonify({"replies": respostas})
 
-    if "deu certo" in msg or "funcionou" in msg:
-        return jsonify({
-            "reply": "🙌 Que ótimo! Aproveite bem o teste. Em breve envio mais dicas úteis! 😉"
-        })
+    if 'duplecast' in msg or 'ott player' in msg:
+        respostas.append("📸 Me envie o QR code do app para que eu possa configurar o teste.")
+        return jsonify({"replies": respostas})
 
-    if "não funcionou" in msg or "nao funcionou" in msg or "deu erro" in msg:
-        return jsonify({
-            "reply": "😕 Que pena! Me diga o que aconteceu ou envie uma foto de como digitou o login, senha e DNS. Atenção às letras maiúsculas/minúsculas, sem espaços extras, etc."
-        })
+    # Após o app ser instalado
+    if 'instalei' in msg or 'baixei' in msg or 'pronto' in msg:
+        numero = gerar_numero_teste()
+        respostas.append(f"✅ Ótimo! Agora digite o número *{numero}* para gerar seu login de teste.")
+        return jsonify({"replies": respostas})
 
-    if "acabou o teste" in msg or "acabou" in msg:
-        return jsonify({
-            "reply": f"⏳ Seu teste chegou ao fim.\n\n📦 Agora escolha seu plano e continue com a gente!\n\n{planos}"
-        })
+    # Após envio de login, 30 minutos depois
+    if 'recebi' in msg or 'login' in msg:
+        respostas.append("⏱️ Em cerca de 30 minutos te pergunto se deu certo, tudo bem?")
+        return jsonify({"replies": respostas})
 
-    # Mensagens aleatórias durante o teste
-    if "tô testando" in msg or "estou testando" in msg:
-        aviso = random.choice(avisos)
-        return jsonify({
-            "reply": aviso
-        })
+    if 'deu certo' in msg:
+        respostas.append("Show! Aproveite o teste. Qualquer dúvida, estou por aqui. 😉")
+        return jsonify({"replies": respostas})
 
-    return jsonify({
-        "reply": "🤖 Atendimento inteligente! Me diga o que você precisa ou o modelo da sua TV, celular ou outro dispositivo. Estou aqui pra te ajudar!"
-    })
+    if 'nao funcionou' in msg or 'não funcionou' in msg or 'erro' in msg:
+        respostas.append("😕 Entendi. Pode me mandar uma foto de como digitou login, senha e DNS?")
+        respostas.append("Verifique se está copiando tudo certinho: maiúsculas, minúsculas, espaços, etc.")
+        return jsonify({"replies": respostas})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    if 'acabou' in msg or 'terminou' in msg:
+        respostas.append("🕒 O teste chegou ao fim.")
+        respostas.append(planos)
+        return jsonify({"replies": respostas})
+
+    # Dicas criativas durante as 3 horas de teste
+    if 'dica' in msg or 'canal' in msg:
+        respostas.append("➡️ Alguns canais só abrem em dias de eventos.")
+        respostas.append("*EX: Disney+, HBO Max, Premiere, Prime Vídeo, Paramount...*")
+        respostas.append("Eles funcionam só minutos antes do evento (luta, futebol, etc).")
+        return jsonify({"replies": respostas})
+
+    # Atendimento padrão para dúvidas e novas mensagens
+    respostas.append("🤖 Sou seu assistente para te ajudar com o IPTV.")
+    respostas.append("Me diga o modelo da sua TV ou o dispositivo que você quer usar.")
+    return jsonify({"replies": respostas})
