@@ -6,144 +6,105 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# Inicializando a API da OpenAI
+# Inicializa cliente da OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Webhooks para geração de login IPTV
-WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
+# Webhooks
 WEBHOOK_ANDROID = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
+WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 
 # Função para gerar login
-def gerar_login(webhook_url):
+def gerar_login(link_webhook, numero):
     try:
-        resposta = requests.get(webhook_url)
-        dados = resposta.json()
-        if isinstance(dados, list):
-            mensagens = [{"message": msg} for msg in dados]
-            return {"data": mensagens}
-        return {"data": [{"message": "Erro: resposta do servidor fora do padrão."}]}
-    except Exception as e:
-        return {"data": [{"message": f"Erro ao gerar login: {str(e)}"}]}
+        response = requests.get(f"{link_webhook}&n={numero}")
+        if response.status_code == 200:
+            return response.text
+        return "Erro ao gerar login. Tente novamente."
+    except:
+        return "Erro ao acessar o servidor. Tente mais tarde."
 
-# Função para decidir qual mensagem enviar
-def responder_usuario(mensagem, nome):
+# Função principal de atendimento com IA
+def processar_mensagem(mensagem, nome_contato):
+    msg = mensagem.lower()
 
-    mensagem = mensagem.lower().strip()
-    nome_salvo = not nome.startswith("+55")
+    # Boas-vindas personalizadas
+    if nome_contato.startswith("+55"):
+        return [{
+            "message": "Olá! Seja bem-vindo(a)! 👋\n\nTemos canais, filmes, séries e esportes ao vivo! Qual é o dispositivo que você deseja usar para testar nosso serviço IPTV?"
+        }]
 
-    # Boas-vindas se for número desconhecido
-    if not nome_salvo:
-        return {"data": [{
-            "message": (
-                "Olá! 👋 Sou seu atendente virtual de IPTV.\n\n"
-                "Temos canais ao vivo 📺, filmes 🎬, séries 📖 e muito mais!\n"
-                "Qual é o modelo da sua TV ou dispositivo? (Ex: Samsung, LG, Android TV, iPhone...)"
-            )
-        }]}
+    # Se cliente mencionar TV Samsung
+    if "samsung" in msg:
+        return [{
+            "message": "Para a TV Samsung, recomendamos o app *Xcloud* (ícone verde com preto). Ele está disponível na loja da sua TV. Após instalar, me avise para eu liberar o teste!"
+        }]
 
-    # Geração automática de login para Xcloud (TVs novas Samsung, LG, Roku, etc.)
-    if "baixei" in mensagem or "já instalei" in mensagem or "já baixei" in mensagem:
-        if "xcloud" in mensagem or "roku" in mensagem or "samsung" in mensagem or "lg" in mensagem:
-            return gerar_login(WEBHOOK_XCLOUD)
-        elif "android" in mensagem or "tv box" in mensagem or "smartphone" in mensagem:
-            return gerar_login(WEBHOOK_ANDROID)
-        elif "iphone" in mensagem or "ios" in mensagem or "computador" in mensagem:
-            return gerar_login(WEBHOOK_ANDROID)
-        elif "88" in mensagem:
-            return {"data": [{
-                "message": (
-                    "📺 Para Samsung antiga, use o app Smart STB com os seguintes dados:\n"
-                    "- DNS: 64.31.61.14\n"
-                    "- Login: ***\n"
-                    "- Senha: ***\n\n"
-                    "Se precisar de ajuda, me avise!"
-                )
-            }]}
+    # Se cliente mencionar LG
+    if "lg" in msg:
+        return [{
+            "message": "Para TVs LG, recomendamos primeiro o app *Xcloud* (verde com preto). Se não funcionar, temos também o *Duplecast* (com QR Code) ou *SmartOne* (com MAC). Já instalou algum desses? Me avise para seguirmos!"
+        }]
+
+    # Se cliente mencionar Roku
+    if "roku" in msg:
+        return [{
+            "message": "Na sua Roku, use o app *Xcloud*. Já instalou? Se sim, me avise que libero o acesso para teste! Caso não funcione, temos o *OTT Player* como opção alternativa."
+        }]
+
+    # Se cliente mencionar iPhone, computador ou iOS
+    if "iphone" in msg or "ios" in msg or "computador" in msg or "pc" in msg:
+        return [{
+            "message": "Para iPhone ou computador, baixe o app *Smarters Player Lite* (ícone azul). Assim que estiver instalado, me avise que libero o teste!"
+        }]
+
+    # Se cliente mencionar Android ou TV Box
+    if "android" in msg or "tv box" in msg or "xtream" in msg:
+        return [{
+            "message": "Para Android ou TV Box, o melhor app é o *Xtream IPTV Player*. Também funciona com *9Xtream*, *XCIPTV* ou *IPTV Stream Player*. Instale e me avise para liberar o teste!"
+        }]
+
+    # Cliente já confirmou que baixou
+    if "baixei" in msg or "instalei" in msg or "pronto" in msg:
+        numero_aleatorio = random.choice([221, 225, 500, 555])
+        return [{
+            "message": f"Perfeito! 😊 Agora digite o número *{numero_aleatorio}* aqui para eu liberar o teste automático!"
+        }]
+
+    # Cliente digitou número do teste
+    if any(n in msg for n in ["221", "225", "500", "555", "88"]):
+        if "88" in msg:
+            login = gerar_login(WEBHOOK_ANDROID, 88)
+        elif any(n in msg for n in ["221", "225", "500", "555"]):
+            login = gerar_login(WEBHOOK_XCLOUD, int(''.join(filter(str.isdigit, msg))))
         else:
-            return {"data": [{
-                "message": "Perfeito! Gerando seu login agora... ⏳"
-            }]}
+            login = "Número inválido."
+        return [{"message": f"✅ Aqui está seu login para teste:\n\n{login}\n\n🕐 Lembrando que o teste dura cerca de 3 horas.\n\nVolto em 30 minutos para ver se funcionou direitinho! 😉"}]
 
-    # Marca da TV informada
-    if any(tv in mensagem for tv in ["samsung", "lg", "philco", "philips", "aoc", "roku"]):
-        if "samsung" in mensagem:
-            return {"data": [{
-                "message": (
-                    "Para TVs Samsung 📺, baixe o app *Xcloud* na loja da sua TV (ícone verde com preto).\n"
-                    "Depois de instalar, me avise que eu gero seu acesso automático! 🔐"
-                )
-            }]}
-        elif "lg" in mensagem:
-            return {"data": [{
-                "message": (
-                    "📺 Na sua LG, baixe o app *Xcloud* (ícone verde com preto).\n"
-                    "Se já tiver o app SmartOne instalado, envie o MAC.\n"
-                    "Me avise quando o app estiver instalado para liberar o teste!"
-                )
-            }]}
-        elif "philco" in mensagem:
-            return {"data": [{
-                "message": (
-                    "Sua TV Philco é modelo novo ou antigo?\n"
-                    "Se for antiga, digite o número 98 no WhatsApp para liberar o login de teste."
-                )
-            }]}
-        elif "roku" in mensagem:
-            return {"data": [{
-                "message": (
-                    "Para Roku, baixe o app *Xcloud* (ícone verde com preto).\n"
-                    "Se não encontrar, posso te ajudar com outra opção. Me avise!"
-                )
-            }]}
-        elif "philips" in mensagem or "aoc" in mensagem:
-            return {"data": [{
-                "message": (
-                    "Essas TVs funcionam melhor com o app OTT Player ou Duplecast (com QR code).\n"
-                    "Envie o QR code do app instalado e sigo com o teste!"
-                )
-            }]}
-
-    # Solicitação direta de teste sem informações suficientes
-    if "teste" in mensagem:
-        return {"data": [{
-            "message": (
-                "Claro! 😊 Só preciso saber o modelo da sua TV ou dispositivo (ex: LG, Samsung, Android TV, iPhone...)\n"
-                "Assim consigo indicar o melhor aplicativo pra você."
-            )
-        }]}
-
-    # Default: usar IA para responder
-    prompt = [
-        {"role": "system", "content": (
-            "Você é um atendente de IPTV. Sempre responda de forma educada e clara. "
-            "Se o cliente disser que já baixou o app, gere o login de teste conforme o dispositivo. "
-            "Evite enviar login sem confirmação do cliente. Use uma linguagem humana e útil."
-        )},
-        {"role": "user", "content": mensagem}
-    ]
-
-    try:
-        completion = client.chat.completions.create(
-            model="gpt-4",
-            messages=prompt
-        )
-        resposta = completion.choices[0].message.content
-        return {"data": [{"message": resposta}]}
-    except Exception as e:
-        return {"data": [{"message": f"Erro ao responder com IA: {str(e)}"}]}
+    # Mensagem padrão para dúvidas
+    return [{
+        "message": "Olá! Como posso te ajudar hoje com nosso serviço de IPTV? Me diga o dispositivo que você vai usar (Samsung, LG, Android, iPhone, Roku, etc.)."
+    }]
 
 # Rota principal
 @app.route("/", methods=["POST"])
-def home():
-    try:
-        dados = request.json
-        mensagem = dados.get("message") or dados.get("query", {}).get("message") or ""
-        nome = dados.get("sender") or dados.get("query", {}).get("sender") or "Cliente"
-        return jsonify(responder_usuario(mensagem, nome))
-    except Exception as e:
-        return jsonify({"data": [{"message": f"Erro no servidor: {str(e)}"}]})
+def responder():
+    data = request.get_json()
 
-# Inicialização
+    # Compatível com AutoResponder (estrutura com "query")
+    if "query" in data:
+        msg = data["query"].get("message", "")
+        nome = data["query"].get("sender", "")
+    else:
+        msg = data.get("senderMessage", "")
+        nome = data.get("senderName", "")
+
+    respostas = processar_mensagem(msg, nome)
+    return jsonify({"replies": respostas})
+
+# Teste rápido
+@app.route("/", methods=["GET"])
+def home():
+    return "Servidor ativo! 🚀"
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
