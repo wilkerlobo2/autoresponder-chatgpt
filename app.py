@@ -4,146 +4,161 @@ import re
 
 app = Flask(__name__)
 
-# Webhooks de geração de login
+# Webhooks
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
-# Lista de palavras-chave para dispositivos
+# Palavras que indicam que o app foi instalado
+PALAVRAS_CONFIRMADAS = ["instalei", "baixei", "baixado", "foi", "pronto", "já instalei", "tá pronto"]
+
+# Dicionário de dispositivos e apps
 DISPOSITIVOS = {
-    "roku": "xcloud",
-    "samsung": "xcloud",
-    "lg": "xcloud",
-    "android": "xtream iptv player",
-    "tv box": "xtream iptv player",
-    "celular": "xtream iptv player",
-    "projetor": "xtream iptv player",
-    "iphone": "smarters player lite",
-    "ios": "smarters player lite",
-    "computador": "smarters player lite",
-    "philco antiga": "smart stb",
-    "philco": "xcloud",
-    "aoc": "duplecast ou ott player",
-    "philips": "duplecast ou ott player",
-    "fire stick": "xtream iptv player"
+    "roku": {"app": "Xcloud", "webhook": WEBHOOK_XCLOUD},
+    "samsung": {"app": "Xcloud", "webhook": WEBHOOK_XCLOUD},
+    "lg": {"app": "Xcloud", "webhook": WEBHOOK_XCLOUD},
+    "philco antiga": {"app": "Smart STB", "dns": "64.31.61.14"},
+    "philco": {"app": "Xcloud", "webhook": WEBHOOK_XCLOUD},
+    "aoc": {"app": "OTT Player / Duplecast"},
+    "philips": {"app": "OTT Player / Duplecast"},
+    "android": {"app": "Xtream IPTV Player", "webhook": WEBHOOK_GERAL},
+    "tv box": {"app": "Xtream IPTV Player", "webhook": WEBHOOK_GERAL},
+    "celular": {"app": "Xtream IPTV Player", "webhook": WEBHOOK_GERAL},
+    "projetor": {"app": "Xtream IPTV Player", "webhook": WEBHOOK_GERAL},
+    "iphone": {"app": "Smarters Player Lite", "webhook": WEBHOOK_GERAL},
+    "ios": {"app": "Smarters Player Lite", "webhook": WEBHOOK_GERAL},
+    "computador": {"app": "Smarters Player Lite", "webhook": WEBHOOK_GERAL},
+    "fire stick": {"app": "Xtream IPTV Player", "webhook": WEBHOOK_GERAL},
 }
 
-# Geração de boas-vindas
-def gerar_boas_vindas():
-    return (
-        "Olá! 👋 Aqui você tem acesso a *canais, filmes e séries* no seu dispositivo.\n"
-        "Vamos começar seu teste gratuito? Me diga qual é o seu dispositivo ou TV que você quer usar."
-    )
+# Função para gerar boas-vindas
+def boas_vindas(nome):
+    if nome.startswith("+55"):
+        return (
+            "👋 Olá! Seja bem-vindo(a)! Aqui você tem acesso a *canais, filmes e séries* direto no seu aparelho. "
+            "Vamos começar seu teste gratuito?\n\n"
+            "Me diga qual é o modelo da sua TV ou celular. 😉"
+        )
+    return None
 
-# Verifica se o cliente é novo (número sem nome)
-def cliente_novo(nome):
-    return nome.startswith("+55")
-
-# Gera login de teste via webhook
+# Função para gerar login
 def gerar_login(webhook_url):
     try:
-        response = requests.get(webhook_url, timeout=10)
-        if response.status_code == 200:
-            dados = response.json()
-            username = dados.get("username", "")
-            password = dados.get("password", "")
-            dns = dados.get("dns", "")
-            mensagem = f"*Usuário:* `{username}`\n*Senha:* `{password}`"
-            if dns:
-                mensagem += f"\n*DNS:* `{dns}`"
-            mensagem += "\n\n⏳ *Seu teste dura 3 horas.*"
-            # Aviso sobre caracteres parecidos
-            if re.search(r"[IlO0]", username):
-                mensagem += "\n\n⚠️ Atenção: o login contém caracteres parecidos. Observe:\n"
-                if "I" in username:
-                    mensagem += "🔹 Letra *I* de *Índia*\n"
-                if "l" in username:
-                    mensagem += "🔹 Letra *l* minúscula de *lápis*\n"
-                if "O" in username:
-                    mensagem += "🔹 Letra *O* de *Ovo*\n"
-                if "0" in username:
-                    mensagem += "🔹 Número *0* (zero)\n"
-                mensagem += "\nDigite exatamente como foi enviado, respeitando letras maiúsculas e minúsculas."
-            return mensagem
-        else:
-            return "❌ Erro ao gerar login de teste. Tente novamente mais tarde."
-    except:
-        return "⚠️ Ocorreu um erro ao gerar o teste."
+        resp = requests.get(webhook_url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            usuario = data.get("username", "")
+            senha = data.get("password", "")
+            dns = data.get("dns", "")
 
-# Rota principal (POST)
+            msg = f"*Usuário:* `{usuario}`\n*Senha:* `{senha}`"
+            if dns:
+                msg += f"\n*DNS:* `{dns}`"
+            msg += "\n\n⏳ *Seu teste dura 3 horas.*"
+
+            if re.search(r"[IlO0]", usuario):
+                msg += (
+                    "\n\n⚠️ Atenção: o login contém caracteres parecidos:\n"
+                    "✅ Letra *I* de *Índia*\n"
+                    "✅ Letra *l* minúscula de *lápis*\n"
+                    "✅ Letra *O* de *Ovo*\n"
+                    "✅ Número *0* (zero)\n"
+                    "Digite exatamente como foi enviado, respeitando letras maiúsculas e minúsculas."
+                )
+
+            return msg
+        else:
+            return "❌ Erro ao gerar login. Tente novamente em instantes."
+    except:
+        return "⚠️ Ocorreu um erro ao gerar seu login."
+
 @app.route("/", methods=["POST"])
 def responder():
-    dados = request.get_json()
-    nome = dados.get("name", "")
-    mensagem = dados.get("message", "").lower()
+    nome = request.args.get("name", "")
+    mensagem = request.args.get("message", "").lower()
     respostas = []
 
-    # Cliente novo com interesse
-    if cliente_novo(nome) and "teste" in mensagem:
-        respostas.append({"message": gerar_boas_vindas()})
+    # Boas-vindas para novos clientes
+    if nome.startswith("+55") and "teste" in mensagem:
+        respostas.append({"message": boas_vindas(nome)})
         return jsonify({"replies": respostas})
 
-    # Dispositivo citado
+    # Identificação do dispositivo
     for chave in DISPOSITIVOS:
         if chave in mensagem:
-            app_indicado = DISPOSITIVOS[chave]
-            if app_indicado == "xcloud":
-                respostas.append({"message": "✅ Baixe o app *Xcloud* (ícone verde e preto) na sua TV.\nMe avise quando tiver instalado para eu liberar o login!"})
-            elif app_indicado == "xtream iptv player":
-                respostas.append({"message": "✅ Baixe o app *Xtream IPTV Player* no seu aparelho Android, TV box ou celular. Me avise quando terminar para eu liberar o login!"})
-            elif app_indicado == "smarters player lite":
-                respostas.append({"message": "✅ Baixe o app *Smarters Player Lite* no seu iPhone ou computador. Me avise quando terminar para eu liberar o login!"})
-            elif "duplecast" in app_indicado or "ott player" in app_indicado:
-                respostas.append({"message": "✅ Baixe o app *Duplecast IPTV* ou *OTT Player*.\nAbra o app e envie a *foto do QR Code* da tela para eu ativar seu acesso!"})
-            elif app_indicado == "smart stb":
+            info = DISPOSITIVOS[chave]
+            app_nome = info["app"]
+
+            if app_nome == "Smart STB":
                 respostas.append({"message": (
-                    "✅ Faça o procedimento deste vídeo:\n"
+                    "📺 Para sua Philco antiga:\n"
+                    "Assista ao vídeo 👇\n"
                     "https://youtu.be/2ajEjRyKzeU?si=0mbSVYrOkU_2-hO0\n\n"
-                    "*DNS:* `64.31.61.14`\n"
-                    "Depois:\n1️⃣ Reinicie a TV\n2️⃣ Instale o app *SMART STB*\n\n"
-                    "Me avise quando terminar para eu liberar o login!"
+                    f"*DNS:* `{info['dns']}`\n"
+                    "Depois:\n1️⃣ Desligue e ligue a TV\n2️⃣ Instale o app *SMART STB*\n\n"
+                    "Me avise aqui para gerar seu acesso!"
                 )})
+                return jsonify({"replies": respostas})
+
+            if app_nome == "OTT Player / Duplecast":
+                respostas.append({"message": (
+                    "📲 Instale o app *Duplecast IPTV* ou *OTT Player* na sua TV.\n"
+                    "Depois de instalar, abra o app e envie uma *foto do QR Code* para ativar seu acesso. 📸"
+                )})
+                return jsonify({"replies": respostas})
+
+            respostas.append({"message": f"✅ Baixe o app *{app_nome}*.\nQuando instalar, me avise para liberar seu acesso. 😉"})
             return jsonify({"replies": respostas})
 
-    # Cliente disse que instalou
-    if "instalei" in mensagem or "já instalei" in mensagem:
-        if "xcloud" in mensagem or "roku" in mensagem or "samsung" in mensagem or "lg" in mensagem:
-            login_msg = gerar_login(WEBHOOK_XCLOUD)
+    # Cliente confirmou que instalou
+    if any(palavra in mensagem for palavra in PALAVRAS_CONFIRMADAS):
+        if "xcloud" in mensagem or "roku" in mensagem or "samsung" in mensagem or "lg" in mensagem or "philco" in mensagem:
+            login = gerar_login(WEBHOOK_XCLOUD)
         else:
-            login_msg = gerar_login(WEBHOOK_GERAL)
+            login = gerar_login(WEBHOOK_GERAL)
 
-        respostas.append({"message": f"Aqui está seu login de teste:\n\n{login_msg}"})
-        respostas.append({"message": "⏳ Aguarde, em breve vou perguntar se deu tudo certo com seu teste. 😉"})
+        respostas.append({"message": f"Aqui está seu login de teste:\n\n{login}"})
+        respostas.append({"message": (
+            "⏳ Daqui 30 minutos te pergunto se deu tudo certo, tá bom?\n\n"
+            "⚠️ Lembre-se:\n"
+            "➡️ Alguns canais só funcionam durante eventos ao vivo como futebol, lutas, etc.\n"
+            "Eles abrem poucos minutos antes de começar!"
+        )})
         return jsonify({"replies": respostas})
 
-    # Problemas durante o teste
-    if "não funcionou" in mensagem or "deu erro" in mensagem:
-        respostas.append({"message": "❌ Verifique se digitou certo: maiúsculas, minúsculas e sem espaços extras.\nSe possível, envie uma foto da tela pra eu analisar."})
+    # Após 3 horas
+    if "terminou o teste" in mensagem or "acabou o teste" in mensagem:
+        respostas.append({"message": (
+            "⏳ Seu teste gratuito terminou.\n\n"
+            "*Planos disponíveis:* 👇\n"
+            "✅ R$ 26,00 - 1 mês\n"
+            "✅ R$ 47,00 - 2 meses\n"
+            "✅ R$ 68,00 - 3 meses\n"
+            "✅ R$ 129,00 - 6 meses\n"
+            "✅ R$ 185,00 - 1 ano\n\n"
+            "*PIX:* 41.638.407/0001-26 (CNPJ - Axel Castelo / Banco C6)\n"
+            "*Cartão:* https://link.mercadopago.com.br/cplay"
+        )})
         return jsonify({"replies": respostas})
 
-    # Dúvidas sobre IPTV
+    # Dúvidas gerais
     if "o que é iptv" in mensagem or "como funciona" in mensagem:
         respostas.append({"message": (
-            "📺 *IPTV* é um serviço de TV pela internet com acesso a *canais ao vivo*, *filmes* e *séries*.\n"
-            "Basta instalar o app indicado e digitar seu login. Simples assim!"
+            "📺 *IPTV* é uma forma moderna de assistir canais, filmes e séries pela internet.\n"
+            "Sem antena, sem complicação. Basta instalar o app e digitar seu login!"
         )})
         return jsonify({"replies": respostas})
 
-    # Fim do teste
-    if "terminou o teste" in mensagem:
+    # Falha no teste
+    if "não funcionou" in mensagem or "erro" in mensagem or "não deu certo" in mensagem:
         respostas.append({"message": (
-            "⏳ Seu teste terminou!\n\nConheça nossos planos:\n"
-            "📅 R$ 26,00 – 1 mês\n"
-            "📅 R$ 47,00 – 2 meses\n"
-            "📅 R$ 68,00 – 3 meses\n"
-            "📅 R$ 129,00 – 6 meses\n"
-            "📅 R$ 185,00 – 1 ano\n\n"
-            "*PIX:* 41.638.407/0001-26\nBanco C6 – CNPJ Axel Castelo\n\n"
-            "*Cartão de crédito:* https://link.mercadopago.com.br/cplay"
+            "⚠️ Verifique se digitou tudo certinho.\n"
+            "Observe letras maiúsculas e minúsculas, sem espaços extras.\n"
+            "Se puder, mande uma foto da tela pra eu te ajudar!"
         )})
         return jsonify({"replies": respostas})
 
-    # Padrão (quando não entendeu)
-    respostas.append({"message": "Me diga o modelo da sua TV ou celular para eu te indicar o aplicativo ideal! 😉"})
+    # Resposta padrão
+    respostas.append({"message": "Me diga qual é o modelo da sua TV ou celular para indicar o app ideal. 📲"})
     return jsonify({"replies": respostas})
 
 if __name__ == "__main__":
