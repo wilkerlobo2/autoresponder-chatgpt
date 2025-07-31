@@ -1,120 +1,124 @@
 from flask import Flask, request, jsonify
 import openai
 import random
-import time
+import requests
 
 app = Flask(__name__)
 
-openai.api_key = "SUA_CHAVE_DA_API_OPENAI"
+# ✅ Configuração da API da OpenAI
+openai.api_key = "SUA_CHAVE_OPENAI_AQUI"  # Substitua pela sua chave
 
-# Dicionário para armazenar estado por número
-estado_cliente = {}
+# ✅ Webhooks para login automático
+WEBHOOK_ANDROID = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
+WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
+
+# ✅ Mensagens prontas para cada número
+mensagens_fixas = {
+    "88": """Faça o procedimento do vídeo⬇️
+https://youtu.be/2ajEjRyKzeU?si=0mbSVYrOkU_2-hO0
+
+Coloque a numeração ⬇️
+DNS: 64.31.61.14
+
+Depois de fazer o procedimento:
+1 - Desligue e ligue a TV
+2 - Instale e abra o app *SMART STB*
+
+➖️➖️➖️➖️
+*SEGUE OS DADOS PARA ACESSAR:* ⬇️
+*Usuário:* 👤 {USERNAME}
+*Senha:* 🔐 {PASSWORD}
+*Tempo:* 3 horas de teste
+
+*MENSALIDADE:* R$ 26,00
+Se gostou e quiser assinar, *digite 100*
+""",
+}
+
+# ✅ Função para gerar login
+def gerar_login(webhook_url):
+    try:
+        resposta = requests.get(webhook_url, timeout=10)
+        dados = resposta.json()
+        username = dados.get("user", "usuario_teste")
+        password = dados.get("pass", "senha_teste")
+        return username, password
+    except:
+        return None, None
 
 @app.route("/", methods=["POST"])
 def responder():
     data = request.json
-    mensagem = data.get("query", {}).get("message", "").strip().lower()
-    numero = data.get("query", {}).get("sender", "")
+    mensagem = data.get("query", {}).get("message", "").strip()
+    nome = data.get("query", {}).get("sender", "Cliente")
 
-    respostas = []
+    # Se for número de ativação (login)
+    if mensagem in ["555", "221", "500", "225"]:
+        username, password = gerar_login(WEBHOOK_ANDROID)
+        if username:
+            resposta = f"""*CPLAY*
 
-    # Verifica se é mídia (imagem, áudio, etc.)
-    if any(palavra in mensagem for palavra in ["audio", "foto", "imagem", "vídeo"]):
-        respostas.append("📎 Recebi uma mídia! Vou deixar para meu suporte analisar e já já ele te responde manualmente, ok?")
-        return jsonify({"replies": [{"message": r} for r in respostas]})
+*Usuário:* 👤 {username}
+*Senha:* 🔐 {password}
+*URL:* http://p8p8.live
 
-    # Se ainda não tem estado, inicia
-    if numero not in estado_cliente:
-        estado_cliente[numero] = {
-            "etapa": "inicio",
-            "app": None,
-            "tv": None,
-            "esperando_instalacao": False,
-            "login_enviado": False,
-            "inicio_teste": None
-        }
+⏳ Seu teste dura 3 horas!
 
-    estado = estado_cliente[numero]
-
-    # IA interpreta o tipo de TV/dispositivo
-    if estado["etapa"] == "inicio":
-        prompt = f"""
-        O cliente enviou: "{mensagem}"
-
-        Interprete a marca/modelo da TV ou o dispositivo (ex: Roku, Android, Samsung nova, LG, iPhone, Fire Stick etc).
-        Diga apenas qual app ele deve instalar primeiro. Responda de forma natural e criativa, como se fosse um humano.
-        Em seguida, diga: "Quando terminar de instalar, me avisa por aqui 😉"
-        """
-        resposta_ia = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        resposta = resposta_ia.choices[0].message.content.strip()
-        estado["etapa"] = "aguardando_instalacao"
-        respostas.append(resposta)
-        return jsonify({"replies": [{"message": r} for r in respostas]})
-
-    # Cliente confirma que instalou o app
-    if estado["etapa"] == "aguardando_instalacao" and any(p in mensagem for p in ["instalei", "já instalei", "baixei", "já baixei", "pronto"]):
-        # Decide qual número mandar
-        if "xcloud" in mensagem or "roku" in mensagem or "samsung nova" in mensagem or "lg" in mensagem:
-            numero_teste = "91"
-        elif "iphone" in mensagem or "ios" in mensagem:
-            numero_teste = "224"
-        elif "samsung antigo" in mensagem or "smart stb" in mensagem or "88" in mensagem:
-            numero_teste = "88"
+Após 30 min envio mensagem pra saber se deu certo, tá bom? 😊"""
         else:
-            numero_teste = "221"
+            resposta = "❌ Não consegui gerar o login. Tente novamente mais tarde."
+        return jsonify({"replies": [{"message": resposta}]})
 
-        estado["numero_teste"] = numero_teste
-        estado["etapa"] = "aguardando_envio_login"
+    elif mensagem == "91":  # Xcloud
+        username, password = gerar_login(WEBHOOK_XCLOUD)
+        if username:
+            resposta = f"""✅ *Login Xcloud Gerado!*
 
-        respostas.append(f"Perfeito! 😄 Agora digite *{numero_teste}* aqui na conversa para gerar seu login de teste!")
-        return jsonify({"replies": [{"message": r} for r in respostas]})
+*Usuário:* 👤 {username}
+*Senha:* 🔐 {password}
+*URL:* http://p8p8.live
 
-    # Após login enviado (detecta número digitado)
-    if estado["etapa"] == "aguardando_envio_login" and mensagem in ["221", "224", "91", "88"]:
-        estado["login_enviado"] = True
-        estado["inicio_teste"] = time.time()
-        estado["etapa"] = "aguardando_confirmacao"
+⏳ Você tem 3 horas pra testar.
 
-        respostas.append("Login enviado! ✅ Daqui a pouco volto pra saber se funcionou!")
-        return jsonify({"replies": [{"message": r} for r in respostas]})
+Depois me diga se funcionou certinho 😊"""
+        else:
+            resposta = "❌ Não consegui gerar o login do Xcloud. Tente novamente mais tarde."
+        return jsonify({"replies": [{"message": resposta}]})
 
-    # 30 minutos depois, verifica se deu certo
-    if estado["etapa"] == "aguardando_confirmacao" and estado["login_enviado"]:
-        tempo_passado = time.time() - estado["inicio_teste"]
-        if tempo_passado > 1800 and tempo_passado < 7200:  # Entre 30 min e 2h
-            respostas.append("E aí, deu tudo certo com o teste? 🎬")
-            respostas.append("Caso não tenha funcionado, me diga o que apareceu ou mande uma foto da tela pra eu te ajudar.")
-            estado["etapa"] = "aguardando_fim_teste"
-            return jsonify({"replies": [{"message": r} for r in respostas]})
+    elif mensagem == "224":
+        username, password = gerar_login(WEBHOOK_ANDROID)
+        resposta = f"""*CPLAY – iPhone (Smarters Player)*
 
-    # Final do teste (após 3h)
-    if estado["etapa"] == "aguardando_fim_teste" and estado["inicio_teste"]:
-        tempo_total = time.time() - estado["inicio_teste"]
-        if tempo_total > 10800:  # 3h
-            respostas.append("⏰ Seu teste gratuito de IPTV chegou ao fim!")
-            respostas.append("Se você curtiu a programação, pode assinar agora mesmo com a gente! 😄")
-            respostas.append(
-                "*Planos disponíveis:*\n"
-                "- R$ 26,00 – 1 mês\n"
-                "- R$ 47,00 – 2 meses\n"
-                "- R$ 68,00 – 3 meses\n"
-                "- R$ 129,00 – 6 meses\n"
-                "- R$ 185,00 – 1 ano\n\n"
-                "*Formas de pagamento:*\n"
-                "- 💳 Cartão: [link do pagamento]\n"
-                "- 💸 PIX (CNPJ): 00.000.000/0001-00"
+*Usuário:* 👤 {username}
+*Senha:* 🔐 {password}
+*URL:* http://p8p8.live
+
+⏳ Teste ativo por 3 horas!
+
+Me avise se funcionar direitinho! 😉"""
+        return jsonify({"replies": [{"message": resposta}]})
+
+    elif mensagem == "88":
+        username, password = gerar_login(WEBHOOK_ANDROID)
+        resposta = mensagens_fixas["88"].format(USERNAME=username, PASSWORD=password)
+        return jsonify({"replies": [{"message": resposta}]})
+
+    else:
+        # Se não for número fixo, usa a IA para interpretar a pergunta
+        prompt = f"Cliente: {mensagem}\nAtendente IPTV:"
+        try:
+            resposta_ia = openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Você é um atendente simpático de IPTV que ajuda o cliente a escolher o app ideal para a TV e só gera o login quando ele disser que já instalou."},
+                    {"role": "user", "content": prompt}
+                ]
             )
-            estado["etapa"] = "fim"
-            return jsonify({"replies": [{"message": r} for r in respostas]})
+            texto = resposta_ia.choices[0].message.content
+            return jsonify({"replies": [{"message": texto}]})
+        except Exception as e:
+            return jsonify({"replies": [{"message": f"⚠️ Erro ao consultar IA: {str(e)}"}]})
 
-    # Resposta padrão
-    respostas.append("🤖 Recebi sua mensagem! Se quiser fazer um teste IPTV, me diga o modelo da sua TV ou aparelho.")
-    return jsonify({"replies": [{"message": r} for r in respostas]})
-
-
-if __name__ == '__main__':
+# 🔥 Mantém o app rodando no Render
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
