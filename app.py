@@ -4,7 +4,7 @@ import re
 import requests
 
 app = Flask(__name__)
-openai.api_key = "SUA_API_KEY"  # Substitua pela sua chave da OpenAI
+openai.api_key = "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"
 
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
@@ -61,7 +61,7 @@ def responder():
         resposta.append({"message": boasvindas})
         return jsonify({"replies": resposta})
 
-    # Usa IA para interpretar o que o cliente quer
+    # Prompt IA
     prompt = (
         f"O cliente enviou esta mensagem: '{mensagem}'\n\n"
         "Interprete com inteligência e responda conforme as regras abaixo:\n\n"
@@ -92,7 +92,7 @@ def responder():
 
         texto = resposta_ia.choices[0].message["content"]
 
-        # Se IA pedir login, decide o webhook
+        # Se cliente disse que instalou, gera login
         if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
             if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
                 login = gerar_login(WEBHOOK_XCLOUD)
