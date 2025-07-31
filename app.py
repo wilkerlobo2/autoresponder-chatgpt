@@ -5,7 +5,7 @@ import requests
 
 app = Flask(__name__)
 
-openai.api_key = "SUA_API_KEY"
+openai.api_key = "SUA_API_KEY"  # Troque pela sua chave da OpenAI
 
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
@@ -76,7 +76,7 @@ def responder():
     msg = data.get("message", "").lower()
     resposta = []
 
-    # Boas-vindas para novos
+    # Boas-vindas para novos contatos
     boasvindas = gerar_boas_vindas(nome)
     if boasvindas:
         resposta.append({"message": boasvindas})
@@ -94,10 +94,9 @@ def responder():
                 resposta.append({"message": "✅ Instale o *OTT Player* ou *Duplecast*, depois envie a *foto do QR Code* da tela para ativação manual."})
             elif app == "smartone":
                 resposta.append({"message": "✅ Me envie o *código MAC* que aparece no app *SmartOne IPTV* para ativar manualmente."})
-            return jsonify({"replies": resposta})
 
-    # Cliente disse que instalou
-    if any(palavra in msg for palavra in ["instalei", "baixei", "baixado", "foi", "pronto"]):
+    # Cliente disse que já instalou
+    if any(p in msg for p in ["instalei", "baixei", "baixado", "foi", "pronto"]):
         if "samsung" in msg and "antiga" in msg:
             login = gerar_login(WEBHOOK_GERAL)
             resposta.append({"message": f"Aqui está seu login para Smart STB:\n\n{login}"})
@@ -112,14 +111,14 @@ def responder():
             resposta.append({"message": f"Aqui está seu login de teste:\n\n{login}"})
 
         resposta.append({"message": "⏳ Em breve vou perguntar se deu tudo certo com seu teste. 😉"})
-        return jsonify({"replies": resposta})
 
-    # Depois de 30 minutos
+    # Confirmação de que funcionou
     if "deu certo" in msg:
         resposta.append({"message": "✅ Que bom! Aproveite os canais, filmes e séries. Qualquer dúvida estou por aqui!"})
-    elif "não funcionou" in msg or "erro" in msg:
+    
+    # Quando não funcionou
+    if "não funcionou" in msg or "erro" in msg:
         resposta.append({"message": "❌ Verifique se digitou tudo corretamente (respeitando maiúsculas e minúsculas). Se puder, envie uma foto da tela para te ajudar melhor."})
-        return jsonify({"replies": resposta})
 
     # Fim do teste
     if "acabou" in msg or "terminou" in msg or "teste acabou" in msg:
@@ -135,17 +134,17 @@ def responder():
             "*Banco:* C6 (CNPJ: Axel Castelo)\n\n"
             "*💳 Cartão:* https://link.mercadopago.com.br/cplay"
         )})
-        return jsonify({"replies": resposta})
 
-    # Dúvidas gerais
+    # Explicação do que é IPTV
     if "iptv" in msg or "como funciona" in msg:
         resposta.append({"message": (
             "📺 *IPTV* é TV por internet! Você assiste ao vivo, filmes e séries direto no seu app, sem antenas nem cabos. Basta instalar o app, digitar seu login e curtir!"
         )})
-        return jsonify({"replies": resposta})
 
-    # Default
-    resposta.append({"message": "Me diga qual dispositivo você vai usar (TV, celular, computador...) que eu te explico como começar! 😉"})
+    # Se nenhuma resposta foi gerada
+    if not resposta:
+        resposta.append({"message": "Me diga qual é o modelo da sua TV ou celular para indicar o app ideal. 📲"})
+
     return jsonify({"replies": resposta})
 
 if __name__ == "__main__":
