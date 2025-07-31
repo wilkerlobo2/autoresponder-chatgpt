@@ -1,58 +1,57 @@
-from flask import Flask, request, jsonify import random import time
+from flask import Flask, request, jsonify import random import datetime import threading
 
 app = Flask(name)
 
-Simula armazenamento de estado temporário
+Lista de números para login de teste
 
-user_states = {}
+numeros_login = ["221", "225", "500", "555"]
 
-Planos formatados com emoji
+Controle de estados por número
 
-planos = ( "\n🌟 Planos disponíveis:\n" "1 mês – R$ 26,00\n" "2 meses – R$ 47,00\n" "3 meses – R$ 68,00\n" "6 meses – R$ 129,00\n" "1 ano – R$ 185,00\n\n" "💳 Pagamento via cartão: [LINK_AQUI]\n" "📲 PIX (CNPJ): 00.000.000/0000-00" )
+estado_cliente = {}
 
-Sorteia um número de login
+Planos e pagamento
 
-numeros_login = ['221', '225', '500', '555']
+planos = """ 🌟 Planos Disponíveis:
 
-Detecta se o contato é novo
+✅ 1 mês: R$ 26,00 ✅ 2 meses: R$ 47,00 ✅ 3 meses: R$ 68,00 ✅ 6 meses: R$ 129,00 ✅ 1 ano: R$ 185,00
 
-def cliente_novo(nome): return nome.startswith('+55')
+💳 Pagamento via PIX (CNPJ): 00.000.000/0001-00
 
-Aguarda app baixado antes de mandar número
+💼 Pagamento com cartão: https://seulinkdecartao.com """
 
-def app_instalado_confirmado(usuario): return user_states.get(usuario, {}).get("app_baixado", False)
+Função auxiliar para enviar mensagens com atraso
 
-Marca que o app foi baixado
+mensagens_pendentes = {}
 
-def registrar_download(usuario): user_states.setdefault(usuario, {})["app_baixado"] = True
+def agendar_mensagem(numero, mensagem, delay): def enviar(): mensagens_pendentes[numero].append(mensagem) if numero not in mensagens_pendentes: mensagens_pendentes[numero] = [] t = threading.Timer(delay, enviar) t.start()
 
-Registra hora do envio do login
+def verificar_mensagens(numero): if numero in mensagens_pendentes and mensagens_pendentes[numero]: return mensagens_pendentes[numero].pop(0) return None
 
-def registrar_envio_login(usuario): user_states.setdefault(usuario, {})["hora_login"] = time.time()
+def gerar_resposta(numero, mensagem): texto = mensagem.lower().strip() estado = estado_cliente.get(numero, {})
 
-Verifica se passaram 30 minutos
+if texto.startswith("+"):  # Novo cliente
+    estado_cliente[numero] = {"etapa": "inicio"}
+    return "Oi! Bem-vindo ✨\nQuer fazer um teste e conhecer nossos canais ao vivo, filmes e séries? Me diz seu dispositivo (ex: Samsung, LG, Roku, Android...) que te oriento com o app ideal."
 
-def passou_30_minutos(usuario): hora = user_states.get(usuario, {}).get("hora_login") return hora and time.time() - hora > 1800
+if any(x in texto for x in ["foto", "imagem", ".jpg", ".png"]):
+    return "Recebi sua imagem. Assim que eu analisar, te respondo."
 
-Verifica se passou 3 horas
+if "audio" in texto:
+    return "Recebi o áudio. Vou escutar e já te respondo."
 
-def passou_3_horas(usuario): hora = user_states.get(usuario, {}).get("hora_login") return hora and time.time() - hora > 10800
+if "android" in texto:
+    estado_cliente[numero] = {"etapa": "aguardando_download", "modelo": "android"}
+    return "Para Android TV, TV Box ou Toshiba/Vizzion/Vidaa, baixe o app *Xtream IPTV Player* 👉 Quando baixar, me avise para eu te passar o próximo passo."
 
-@app.route('/', methods=['POST']) def responder(): dados = request.json nome = dados.get("name", "") mensagem = dados.get("message", "").lower() usuario = dados.get("id", "")
+if "roku" in texto:
+    estado_cliente[numero] = {"etapa": "aguardando_download", "modelo": "roku"}
+    return "Na Roku, tente primeiro o app *Xcloud (verde e preto)*. Quando instalar, me avisa."
 
-# Mensagem com foto/áudio? Deixa para atendimento manual
-if dados.get("hasMedia"):
-    return jsonify({"reply": None})
+if "samsung" in texto:
+    return "Seu modelo é novo ou antigo? Se for novo, usamos o app Xcloud. Se for antigo, te passo o código direto."
 
-# Cliente novo
-if cliente_novo(nome):
-    return jsonify({"reply": (
-        "👋 Olá! Seja bem-vindo! Que tal testar nosso serviço de IPTV com qualidade profissional?\n"
-        "Me diz qual dispositivo você quer usar pra assistir, que te mando o app ideal."
-    )})
-
-# Pergunta sobre modelo
-if any(p in mensagem for p in ["samsung", "philco", "lg", "philips", "aoc", "roku", "fire", "ios", "android", "pc", "computador"]):
-    if "samsung" in mensagem:
-        return jsonify({"reply": "Seu modelo é antigo ou
+if "lg" in texto:
+    estado_cliente[numero] = {"etapa": "aguardando_download", "modelo": "lg"}
+    return "Recomendo o app *Xcloud*. Se não funcionar, podemos tentar o Duplecast (com QR) ou SmartOne (com MAC). Baixe o Xcloud e me avise.
 
