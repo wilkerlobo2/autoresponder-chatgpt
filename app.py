@@ -1,48 +1,58 @@
-// Webhook para AutoResponder com IA personalizada para atendimento IPTV
+from flask import Flask, request, jsonify import random import time
 
-const express = require('express'); const bodyParser = require('body-parser'); const app = express(); const PORT = process.env.PORT || 3000;
+app = Flask(name)
 
-app.use(bodyParser.json());
+Simula armazenamento de estado temporário
 
-const listaAndroid = ['221', '225', '500', '555'];
+user_states = {}
 
-function getRandomAndroidCode() { return listaAndroid[Math.floor(Math.random() * listaAndroid.length)]; }
+Planos formatados com emoji
 
-const planos = `🌟 Planos disponíveis:
+planos = ( "\n🌟 Planos disponíveis:\n" "1 mês – R$ 26,00\n" "2 meses – R$ 47,00\n" "3 meses – R$ 68,00\n" "6 meses – R$ 129,00\n" "1 ano – R$ 185,00\n\n" "💳 Pagamento via cartão: [LINK_AQUI]\n" "📲 PIX (CNPJ): 00.000.000/0000-00" )
 
-📅 1 mês – R$ 26,00 📅 2 meses – R$ 47,00 📅 3 meses – R$ 68,00 📅 6 meses – R$ 129,00 📅 1 ano – R$ 185,00
+Sorteia um número de login
 
-💳 Pagamento via: • PIX (CNPJ): 42.258.208/0001-10 • Cartão: https://pagamento.exemplo.com/cartao`;
+numeros_login = ['221', '225', '500', '555']
 
-const canaisInfo = ➡️ Alguns canais só abrem em dias de eventos: *EX: Disney+ , HBO Max, Premiere, Prime Video, Paramount...* Esses canais não têm programação diária. A transmissão geralmente só abre minutos antes do evento começar.;
+Detecta se o contato é novo
 
-const saudações = [ 'Olá! 👋 Seja bem-vindo! Que tal aproveitar um teste gratuito e conhecer o melhor do IPTV? 😎', 'Oi! 👋 Está pronto para testar o melhor do IPTV? Vamos te ajudar rapidinho!', 'Seja bem-vindo! Preparado para ver tudo o que a gente oferece? Vamos começar seu teste grátis! 📺' ];
+def cliente_novo(nome): return nome.startswith('+55')
 
-const controleSessao = {};
+Aguarda app baixado antes de mandar número
 
-app.post('/', async (req, res) => { const msg = req.body.message?.toLowerCase(); const nome = req.body.name || ''; const numero = req.body.number; const id = numero;
+def app_instalado_confirmado(usuario): return user_states.get(usuario, {}).get("app_baixado", False)
 
-if (!controleSessao[id]) { controleSessao[id] = { etapa: 0, dispositivo: '', loginEnviado: false, horaLogin: null }; }
+Marca que o app foi baixado
 
-const sessao = controleSessao[id];
+def registrar_download(usuario): user_states.setdefault(usuario, {})["app_baixado"] = True
 
-// Ignorar mensagens com mídia (áudio, imagem) if (req.body.message_type !== 'text') { return res.send({ reply: '📷 Recebi sua imagem ou áudio. Vou aguardar você digitar ou responder, tá bem? 😊' }); }
+Registra hora do envio do login
 
-// Mensagem inicial (número não salvo) if (sessao.etapa === 0 && numero.startsWith('+55') && !nome) { sessao.etapa = 1; return res.send({ reply: ${saudações[Math.floor(Math.random() * saudações.length)]}\n\nPara qual dispositivo você quer testar o IPTV? 📲📺 }); }
+def registrar_envio_login(usuario): user_states.setdefault(usuario, {})["hora_login"] = time.time()
 
-// Espera tipo de dispositivo if (sessao.etapa === 1) { if (msg.includes('android') || msg.includes('box') || msg.includes('toshiba') || msg.includes('vizzion') || msg.includes('vidaa')) { sessao.dispositivo = 'android'; sessao.etapa = 2; return res.send({ reply: ✅ Baixe o app *Xtream IPTV Player* na sua TV.\n\nQuando terminar de instalar, me avise aqui. 😉 }); } if (msg.includes('samsung')) { sessao.dispositivo = 'samsung'; sessao.etapa = 2; return res.send({ reply: Seu modelo é antigo ou novo? }); } if (msg.includes('roku')) { sessao.dispositivo = 'roku'; sessao.etapa = 2; return res.send({ reply: 📲 Baixe primeiro o app *Xcloud* na sua Roku. Quando terminar de instalar, me avise aqui. }); } if (msg.includes('lg')) { sessao.dispositivo = 'lg'; sessao.etapa = 2; return res.send({ reply: 📲 Baixe primeiro o app *Xcloud*. Quando terminar, me avisa aqui que te dou o próximo passo. 😉 }); } if (msg.includes('philco')) { sessao.dispositivo = 'philco'; sessao.etapa = 2; return res.send({ reply: Sua Philco é modelo mais antigo ou novo? }); } if (msg.includes('aoc') || msg.includes('philips')) { sessao.dispositivo = 'aoc'; sessao.etapa = 2; return res.send({ reply: 📲 Para sua TV, baixe o app *OTT Player* ou *Duplecast*.\nQuando terminar de instalar, me avise aqui. }); } return res.send({ reply: Consegue me informar o modelo da sua TV com mais detalhes para que eu indique o app ideal? 😊 }); }
+Verifica se passaram 30 minutos
 
-// Após instalar app if (sessao.etapa === 2 && msg.includes('baixei') || msg.includes('instalei')) { if (sessao.dispositivo === 'android') { sessao.etapa = 3; const code = getRandomAndroidCode(); sessao.loginEnviado = true; sessao.horaLogin = Date.now(); return res.send({ reply: ✅ Agora digite aqui o número *${code}* para gerar seu login de teste! }); } // Exemplo Roku, outros seguem lógica parecida if (sessao.dispositivo === 'roku') { sessao.etapa = 3; sessao.loginEnviado = true; sessao.horaLogin = Date.now(); return res.send({ reply: ✅ Agora digite o número *91* aqui para gerar seu login de teste. 😉 }); } return res.send({ reply: Ótimo! Agora me diga o número (caso tenha) ou envie o QR/MAC para eu prosseguir. 😊 }); }
+def passou_30_minutos(usuario): hora = user_states.get(usuario, {}).get("hora_login") return hora and time.time() - hora > 1800
 
-// Verifica 30 min após login if (sessao.loginEnviado && Date.now() - sessao.horaLogin >= 30 * 60000 && !sessao.deuCertoPerguntado) { sessao.deuCertoPerguntado = true; return res.send({ reply: 🚀 Já se passaram 30 minutos... Deu tudo certo com o teste? }); }
+Verifica se passou 3 horas
 
-if (msg.includes('não') && sessao.deuCertoPerguntado) { return res.send({ reply: 😕 Entendi... Me manda uma foto de como você digitou o login, senha e DNS.\n\n⚠️ Lembre-se: *respeite letras maiúsculas, minúsculas e espaços exatamente como foi enviado!* }); }
+def passou_3_horas(usuario): hora = user_states.get(usuario, {}).get("hora_login") return hora and time.time() - hora > 10800
 
-// Durante o período de teste, mensagens informativas if (sessao.loginEnviado && Date.now() - sessao.horaLogin < 3 * 60 * 60000) { const tempo = Math.floor((Date.now() - sessao.horaLogin) / 60000); if (tempo % 30 === 0) { return res.send({ reply: canaisInfo }); } }
+@app.route('/', methods=['POST']) def responder(): dados = request.json nome = dados.get("name", "") mensagem = dados.get("message", "").lower() usuario = dados.get("id", "")
 
-// Teste terminou após 3h if (sessao.loginEnviado && Date.now() - sessao.horaLogin > 3 * 60 * 60000 && !sessao.finalizado) { sessao.finalizado = true; return res.send({ reply: 🕒 O teste gratuito foi encerrado.\n\nSe você gostou, aproveite e escolha um plano para continuar assistindo sem interrupções! 😍\n\n${planos} }); }
+# Mensagem com foto/áudio? Deixa para atendimento manual
+if dados.get("hasMedia"):
+    return jsonify({"reply": None})
 
-return res.send({ reply: 😉 Estou aqui para ajudar. Se precisar de algo, é só chamar! }); });
+# Cliente novo
+if cliente_novo(nome):
+    return jsonify({"reply": (
+        "👋 Olá! Seja bem-vindo! Que tal testar nosso serviço de IPTV com qualidade profissional?\n"
+        "Me diz qual dispositivo você quer usar pra assistir, que te mando o app ideal."
+    )})
 
-app.listen(PORT, () => { console.log(Servidor rodando na porta ${PORT}); });
+# Pergunta sobre modelo
+if any(p in mensagem for p in ["samsung", "philco", "lg", "philips", "aoc", "roku", "fire", "ios", "android", "pc", "computador"]):
+    if "samsung" in mensagem:
+        return jsonify({"reply": "Seu modelo é antigo ou
 
