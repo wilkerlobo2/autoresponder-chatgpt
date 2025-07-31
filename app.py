@@ -128,6 +128,10 @@ def responder():
         return jsonify({"replies": respostas})
 
     # Atendimento padrão para dúvidas e novas mensagens
-    respostas.append("🤖 Sou seu assistente para te ajudar com o IPTV.")
-    respostas.append("Me diga o modelo da sua TV ou o dispositivo que você quer usar.")
-    return jsonify({"replies": respostas})
+respostas.append("🤖 Sou seu assistente para te ajudar com o IPTV.")
+respostas.append("Me diga o modelo da sua TV ou o dispositivo que você quer usar.")
+return jsonify({"replies": respostas})
+
+# 👇 ESSA LINHA DEVE FICAR FORA DA FUNÇÃO responder()
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=10000)
