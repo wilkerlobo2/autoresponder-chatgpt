@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify import os import random from openai import OpenAI
+from flask import Flask, request, jsonify
+import os
 
 app = Flask(name)
 
