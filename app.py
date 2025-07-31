@@ -68,7 +68,7 @@ def gerar_login(webhook_url):
         return "⚠️ Não foi possível gerar o login. Verifique sua conexão."
 
 # Rota principal
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def responder():
     nome = request.args.get("name", "")
     mensagem = request.args.get("message", "").lower()
