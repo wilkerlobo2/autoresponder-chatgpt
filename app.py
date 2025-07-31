@@ -79,7 +79,7 @@ def responder():
     # Boas-vindas para novos
     boasvindas = gerar_boas_vindas(nome)
     if boasvindas:
-        return jsonify({"replies": [{"message": boasvindas}]})
+        resposta.append({"message": boasvindas})
 
     # Reconhece dispositivo
     for chave, app in DISPOSITIVOS.items():
