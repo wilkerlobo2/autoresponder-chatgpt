@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 
-app = Flask(name)
+app = Flask(__name__)
 
 Inicializando a API da OpenAI
 
