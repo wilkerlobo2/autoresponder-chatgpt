@@ -2,9 +2,10 @@ from flask import Flask, request, jsonify
 import openai
 import re
 import requests
+import os
 
 app = Flask(__name__)
-openai.api_key = "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"
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
@@ -71,7 +72,7 @@ def responder():
         "4. Se mencionar iPhone, iOS ou Computador, indique o *Smarters Player Lite*.\n"
         "5. Se mencionar AOC ou Philips, indique *OTT Player* ou *Duplecast* e peça o QR code da tela.\n"
         "6. Se mencionar SmartOne, peça o código MAC.\n"
-        "7. Se o cliente disser que já instalou (ex: 'instalei', 'baixei', 'pronto'), gere o login via webhook.\n"
+        "7. Se o cliente disser que já instalou (ex: 'instalei', 'baixei', 'pronto', 'foi'), gere o login via webhook.\n"
         f"   - Use {WEBHOOK_XCLOUD} se for Xcloud (Roku, Samsung, LG, etc).\n"
         f"   - Use {WEBHOOK_GERAL} para os demais.\n"
         "8. Sempre seja criativo e gentil, com linguagem humana e clara.\n"
@@ -92,7 +93,7 @@ def responder():
 
         texto = resposta_ia.choices[0].message["content"]
 
-        # Se cliente disse que instalou, gera login
+        # Cliente disse que instalou
         if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
             if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
                 login = gerar_login(WEBHOOK_XCLOUD)
