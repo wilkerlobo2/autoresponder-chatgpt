@@ -88,4 +88,7 @@ def responder():
         return jsonify({"replies": [{"message": f"Erro ao responder com IA: {str(e)}"}]})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    import os  # já deve estar no topo do seu app.py
+
+port = int(os.environ.get("PORT", 10000))
+app.run(host="0.0.0.0", port=port)
