@@ -4,35 +4,15 @@ import re
 import requests
 
 app = Flask(__name__)
-
 openai.api_key = "SUA_API_KEY"  # Substitua pela sua chave da OpenAI
 
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
-DISPOSITIVOS = {
-    "roku": "xcloud",
-    "samsung": "xcloud",
-    "lg": "xcloud",
-    "philco": "xcloud",
-    "android": "xtream iptv player",
-    "tv box": "xtream iptv player",
-    "celular": "xtream iptv player",
-    "projetor": "xtream iptv player",
-    "iphone": "smarters player lite",
-    "ios": "smarters player lite",
-    "computador": "smarters player lite",
-    "fire stick": "xtream iptv player",
-    "aoc": "ott player ou duplecast",
-    "philips": "ott player ou duplecast",
-    "smartone": "smartone"
-}
-
 def gerar_boas_vindas(nome):
     if nome.startswith("+55"):
         return (
-            "Olá! 👋\n"
-            "Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries* no seu dispositivo preferido. 📺🍿\n"
+            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
             "Vamos começar seu teste gratuito?\n\n"
             "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
         )
@@ -73,79 +53,60 @@ def gerar_login(webhook):
 def responder():
     data = request.get_json()
     nome = data.get("name", "")
-    msg = data.get("message", "").lower()
+    mensagem = data.get("message", "").lower()
     resposta = []
 
-    # Boas-vindas para novos contatos
     boasvindas = gerar_boas_vindas(nome)
     if boasvindas:
         resposta.append({"message": boasvindas})
         return jsonify({"replies": resposta})
 
-    # Reconhece dispositivo e responde imediatamente
-    for chave, app in DISPOSITIVOS.items():
-        if chave in msg:
-            if app == "xcloud":
-                resposta.append({"message": "✅ Baixe o app *Xcloud* (ícone verde e preto) na sua TV e me avise quando estiver instalado para liberar o login de teste."})
-            elif app == "xtream iptv player":
-                resposta.append({"message": "✅ Baixe o app *Xtream IPTV Player* no seu Android, TV box ou celular. Me avise quando tiver instalado para liberar o teste!"})
-            elif app == "smarters player lite":
-                resposta.append({"message": "✅ Baixe o *Smarters Player Lite* no seu iPhone ou computador. Me avise quando instalar para liberar o login!"})
-            elif "ott" in app or "duplecast" in app:
-                resposta.append({"message": "✅ Instale o *OTT Player* ou *Duplecast*, depois envie a *foto do QR Code* da tela para ativação manual."})
-            elif app == "smartone":
-                resposta.append({"message": "✅ Me envie o *código MAC* que aparece no app *SmartOne IPTV* para ativar manualmente."})
-            return jsonify({"replies": resposta})
+    # Usa IA para interpretar o que o cliente quer
+    prompt = (
+        f"O cliente enviou esta mensagem: '{mensagem}'\n\n"
+        "Interprete com inteligência e responda conforme as regras abaixo:\n\n"
+        "1. Se for novo, convide para teste grátis e peça o modelo do aparelho (TV, celular, etc).\n"
+        "2. Se mencionar TV Roku, LG, Samsung, Philco ou similares, indique baixar o *Xcloud* (ícone verde e preto).\n"
+        "3. Se mencionar Android, TV Box, Fire Stick, Projetor ou Celular, indique o *Xtream IPTV Player*.\n"
+        "4. Se mencionar iPhone, iOS ou Computador, indique o *Smarters Player Lite*.\n"
+        "5. Se mencionar AOC ou Philips, indique *OTT Player* ou *Duplecast* e peça o QR code da tela.\n"
+        "6. Se mencionar SmartOne, peça o código MAC.\n"
+        "7. Se o cliente disser que já instalou (ex: 'instalei', 'baixei', 'pronto'), gere o login via webhook.\n"
+        f"   - Use {WEBHOOK_XCLOUD} se for Xcloud (Roku, Samsung, LG, etc).\n"
+        f"   - Use {WEBHOOK_GERAL} para os demais.\n"
+        "8. Sempre seja criativo e gentil, com linguagem humana e clara.\n"
+        "9. Não peça para colar o login, diga 'digite o login'.\n"
+        "10. Se a mensagem for 'deu certo', responda positivamente.\n"
+        "11. Se for erro ou não funcionou, oriente a verificar e enviar print.\n"
+        "12. Se disser que acabou o teste, envie os valores dos planos.\n"
+        "13. Explique o que é IPTV se ele perguntar.\n\n"
+        "Responda com a mensagem exata que o atendente deve enviar no WhatsApp. Apenas a resposta."
+    )
 
-    # Cliente disse que já instalou
-    if any(p in msg for p in ["instalei", "baixei", "baixado", "foi", "pronto"]):
-        if "samsung" in msg and "antiga" in msg:
-            login = gerar_login(WEBHOOK_GERAL)
-        elif any(x in msg for x in ["iphone", "ios", "computador"]):
-            login = gerar_login(WEBHOOK_GERAL)
-        elif any(x in msg for x in ["xcloud", "roku", "samsung", "lg", "philco"]):
-            login = gerar_login(WEBHOOK_XCLOUD)
+    try:
+        resposta_ia = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+        )
+
+        texto = resposta_ia.choices[0].message["content"]
+
+        # Se IA pedir login, decide o webhook
+        if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
+            if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
+                login = gerar_login(WEBHOOK_XCLOUD)
+            else:
+                login = gerar_login(WEBHOOK_GERAL)
+
+            resposta.append({"message": f"Aqui está seu login de teste:\n\n{login}"})
+            resposta.append({"message": "⏳ Em breve vou perguntar se deu tudo certo com seu teste. 😉"})
         else:
-            login = gerar_login(WEBHOOK_GERAL)
-        resposta.append({"message": f"Aqui está seu login de teste:\n\n{login}"})
-        resposta.append({"message": "⏳ Em breve vou perguntar se deu tudo certo com seu teste. 😉"})
-        return jsonify({"replies": resposta})
+            resposta.append({"message": texto})
 
-    # Confirmação de que funcionou
-    if "deu certo" in msg:
-        resposta.append({"message": "✅ Que bom! Aproveite os canais, filmes e séries. Qualquer dúvida estou por aqui!"})
-        return jsonify({"replies": resposta})
-    
-    # Quando não funcionou
-    if "não funcionou" in msg or "erro" in msg:
-        resposta.append({"message": "❌ Verifique se digitou tudo corretamente (respeitando maiúsculas e minúsculas). Se puder, envie uma foto da tela para te ajudar melhor."})
-        return jsonify({"replies": resposta})
+    except Exception as e:
+        resposta.append({"message": "⚠️ Ocorreu um erro ao processar sua mensagem. Tente novamente em instantes."})
 
-    # Fim do teste
-    if "acabou" in msg or "terminou" in msg or "teste acabou" in msg:
-        resposta.append({"message": (
-            "⏰ Seu teste terminou!\n\n"
-            "Quer continuar assistindo? Aqui estão nossos planos:\n\n"
-            "✅ R$ 26,00 - 1 mês\n"
-            "✅ R$ 47,00 - 2 meses\n"
-            "✅ R$ 68,00 - 3 meses\n"
-            "✅ R$ 129,00 - 6 meses\n"
-            "✅ R$ 185,00 - 1 ano\n\n"
-            "*PIX:* 41.638.407/0001-26\n"
-            "*Banco:* C6 (CNPJ: Axel Castelo)\n\n"
-            "*💳 Cartão:* https://link.mercadopago.com.br/cplay"
-        )})
-        return jsonify({"replies": resposta})
-
-    # Explicação do que é IPTV
-    if "iptv" in msg or "como funciona" in msg:
-        resposta.append({"message": (
-            "📺 *IPTV* é TV por internet! Você assiste ao vivo, filmes e séries direto no seu app, sem antenas nem cabos. Basta instalar o app, digitar seu login e curtir!"
-        )})
-        return jsonify({"replies": resposta})
-
-    # Se nenhuma resposta foi gerada
-    resposta.append({"message": "Me diga qual é o modelo da sua TV ou celular para indicar o app ideal. 📲"})
     return jsonify({"replies": resposta})
 
 if __name__ == "__main__":
