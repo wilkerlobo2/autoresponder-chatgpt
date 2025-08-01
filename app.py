@@ -19,3 +19,84 @@ def enviar_mensagem(numero, texto):
         "number": numero,
         "message": texto
     })
+
+def agendar_mensagens(numero):
+    def lembretes():
+        time.sleep(1800)  # 30 min
+        enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
+        time.sleep(5400)  # +90 min
+        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
+    threading.Thread(target=lembretes).start()
+
+def contem_caracteres_parecidos(texto):
+    return any(c in texto for c in ['I', 'l', 'O', '0'])
+
+@app.route("/", methods=["POST"])
+def responder():
+    data = request.get_json()
+    query = data.get("query", {})
+
+    numero = query.get("sender", "").strip()
+    mensagem = query.get("message", "").strip().lower()
+    resposta = []
+
+    if not numero or not mensagem:
+        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida. Tente novamente."}]})
+
+    if numero not in historico_conversas:
+        historico_conversas[numero] = []
+        mensagem_boas_vindas = (
+            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+            "Vamos começar seu teste gratuito?\n\n"
+            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        )
+        historico_conversas[numero].append("IA: Mensagem de boas-vindas enviada")
+        return jsonify({"replies": [{"message": mensagem_boas_vindas}]})
+
+    historico_conversas[numero].append(f"Cliente: {mensagem}")
+    contexto = "\n".join(historico_conversas[numero][-15:])
+
+    if "instalei" in mensagem and numero not in usuarios_com_login_enviado:
+        historico = "\n".join(historico_conversas[numero])
+        webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
+
+        try:
+            r = requests.get(webhook)
+            if r.status_code == 200:
+                login = r.text.strip()
+                aviso = "\n\n⚠️ Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com cuidado!"
+                resposta.append({"message": f"🔓 Pronto! Aqui está seu login de teste:\n\n{login}" + (aviso if contem_caracteres_parecidos(login) else "")})
+                usuarios_com_login_enviado.add(numero)
+                agendar_mensagens(numero)
+                historico_conversas[numero].append("IA: Login enviado")
+            else:
+                resposta.append({"message": "⚠️ Erro ao gerar login. Tente novamente em instantes."})
+        except Exception as e:
+            resposta.append({"message": f"⚠️ Erro na geração do login: {str(e)}"})
+        return jsonify({"replies": resposta})
+
+    prompt = (
+        "Você está atendendo um cliente no WhatsApp sobre IPTV. Seja educado, natural, criativo e útil.\n"
+        "Fale como um humano, evite repetir frases, e conduza a conversa de forma inteligente.\n"
+        "Se o cliente disser que já instalou o app, responda apenas com algo breve como 'Gerando seu acesso...'.\n\n"
+        f"Histórico:\n{contexto}\n\n"
+        f"Mensagem mais recente: '{mensagem}'\n\n"
+        "Responda:"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+        )
+        texto = response.choices[0].message.content.strip()
+        historico_conversas[numero].append(f"IA: {texto}")
+        resposta.append({"message": texto})
+    except Exception as e:
+        resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
+
+    return jsonify({"replies": resposta})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
