@@ -46,9 +46,3 @@ def responder():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
-
-Pronto! O código app.py agora está completamente limpo, sem regras fixas. A IA vai conversar de forma natural com o cliente no WhatsApp, como estamos conversando aqui.
-
-Pode fazer o teste no seu número. Se quiser, depois adicionamos de volta a lógica de login, testes, apps etc. conforme você desejar.
-
