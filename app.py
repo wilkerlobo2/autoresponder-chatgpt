@@ -12,18 +12,19 @@ def responder():
     data = request.get_json()
     print("📥 Dados recebidos:", data, flush=True)
 
-    nome = data.get("name", "")
-    numero = nome.strip()
-    mensagem = data.get("message", "").strip()
+    # Captura os dados reais de dentro da estrutura do AutoResponder
+    query = data.get("query", {})
+    nome = query.get("sender", "desconhecido").strip()
+    mensagem = query.get("message", "").strip()
     print("📝 Mensagem recebida:", mensagem, flush=True)
 
     resposta = []
 
-    if numero not in historico_conversas:
-        historico_conversas[numero] = []
+    if nome not in historico_conversas:
+        historico_conversas[nome] = []
 
-    historico_conversas[numero].append(f"Cliente: {mensagem}")
-    contexto = "\n".join(historico_conversas[numero][-15:])
+    historico_conversas[nome].append(f"Cliente: {mensagem}")
+    contexto = "\n".join(historico_conversas[nome][-15:])
 
     prompt = (
         f"Você está conversando com um cliente pelo WhatsApp. Seja educado, natural, simpático e criativo.\n"
@@ -41,7 +42,7 @@ def responder():
         )
         texto = response.choices[0].message.content
         print("🤖 Resposta gerada:", texto, flush=True)
-        historico_conversas[numero].append(f"IA: {texto}")
+        historico_conversas[nome].append(f"IA: {texto}")
         resposta.append({"message": texto})
 
     except Exception as e:
