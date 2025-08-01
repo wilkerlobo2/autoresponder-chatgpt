@@ -14,6 +14,7 @@ WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
 historico_conversas = {}
 testes_em_andamento = {}
+dispositivos_detectados = {}
 
 def gerar_login(webhook):
     try:
@@ -53,24 +54,37 @@ def agendar_mensagens(numero):
         testes_em_andamento[numero].append(
             {"message": "Tudo certo aí? 😊 Só passando pra ver se conseguiu usar direitinho. Se tiver dúvidas, é só me chamar!"}
         )
-
         time.sleep(5400)  # até 3 horas no total
         historico_conversas[numero].append("IA: Enviando planos.")
         planos = (
             "*Seu teste terminou!*\n\n"
             "Gostou do serviço? Temos planos super acessíveis pra continuar:\n\n"
-            "📅 1 mês: R$ 26\n"
-            "📅 2 meses: R$ 47\n"
-            "📅 3 meses: R$ 68\n"
-            "📅 6 meses: R$ 129\n"
-            "📅 1 ano: R$ 185\n\n"
-            "💳 Aceitamos Pix e cartão.\n\n"
+            "✅ R$ 26,00 - 1 mês\n"
+            "✅ R$47,00 - 2 meses\n"
+            "✅ R$68,00 - 3 meses\n"
+            "✅ R$129,00 - 6 meses\n"
+            "✅ R$185,00 - 1 ano\n\n"
+            "💳 Aceitamos Pix e cartão.\n"
             "Deseja garantir o seu agora? 😄"
         )
         testes_em_andamento[numero].append({"message": planos})
 
     t = threading.Thread(target=tarefa)
     t.start()
+
+def detectar_dispositivo(msg):
+    msg = msg.lower()
+    if any(x in msg for x in ["roku", "lg", "samsung", "philco", "xcloud"]):
+        return "xcloud"
+    if any(x in msg for x in ["android", "tv box", "celular", "fire stick", "xtream"]):
+        return "xtream"
+    if any(x in msg for x in ["iphone", "ios", "computador", "pc", "macbook", "notebook", "smarters"]):
+        return "smarters"
+    if any(x in msg for x in ["aoc", "philips", "ott", "duplecast"]):
+        return "qr"
+    if "smartone" in msg:
+        return "mac"
+    return None
 
 @app.route("/", methods=["POST"])
 def responder():
@@ -83,37 +97,52 @@ def responder():
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         historico_conversas[numero].append(f"Cliente: {mensagem}")
-        boasvindas = (
-            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-            "Vamos começar seu teste gratuito?\n\n"
-            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-        )
-        historico_conversas[numero].append(f"IA: {boasvindas}")
-        resposta.append({"message": boasvindas})
+        resposta.append({
+            "message": "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\nVamos começar seu teste gratuito?\n\nMe diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        })
         return jsonify({"replies": resposta})
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
 
-    # Se o cliente disser que instalou o app
-    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
-        if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
-            login = gerar_login(WEBHOOK_XCLOUD)
-        else:
-            login = gerar_login(WEBHOOK_GERAL)
+    # Salvar tipo de dispositivo se detectado
+    if numero not in dispositivos_detectados:
+        tipo = detectar_dispositivo(mensagem)
+        if tipo:
+            dispositivos_detectados[numero] = tipo
+            if tipo == "xcloud":
+                resposta.append({"message": "Perfeito! Para sua TV, use o app *Xcloud*. Quando terminar de instalar, me avise dizendo 'instalei' ou 'pronto'."})
+                return jsonify({"replies": resposta})
+            elif tipo == "xtream":
+                resposta.append({"message": "Ótimo! Baixe o app *Xtream IPTV Player* na sua loja de apps. Me avise quando terminar pra eu gerar seu login."})
+                return jsonify({"replies": resposta})
+            elif tipo == "smarters":
+                resposta.append({"message": "Legal! No iPhone ou PC, use o app *Smarters Player Lite*. Assim que instalar, me avise pra te enviar o login."})
+                return jsonify({"replies": resposta})
+            elif tipo == "qr":
+                resposta.append({"message": "Para esse modelo, preciso que me envie o QR Code do app *OTT Player* ou *Duplecast* instalado na TV."})
+                return jsonify({"replies": resposta})
+            elif tipo == "mac":
+                resposta.append({"message": "Por favor, me envie o endereço *MAC* que aparece no app *SmartOne*."})
+                return jsonify({"replies": resposta})
 
+    # Cliente disse que instalou
+    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
+        tipo = dispositivos_detectados.get(numero, "xtream")
+        webhook = WEBHOOK_XCLOUD if tipo == "xcloud" else WEBHOOK_GERAL
+        login = gerar_login(webhook)
         resposta.append({"message": f"Aqui está seu login de teste:\n\n{login}"})
         resposta.append({"message": "⏳ Em breve vou perguntar se deu tudo certo com seu teste. 😉"})
         testes_em_andamento[numero] = []
         agendar_mensagens(numero)
         return jsonify({"replies": resposta})
 
-    # Se houver mensagens pendentes programadas (30min ou final de teste)
+    # Mensagens programadas (30min e fim do teste)
     if numero in testes_em_andamento and testes_em_andamento[numero]:
         resposta.extend(testes_em_andamento[numero])
         testes_em_andamento[numero] = []
         return jsonify({"replies": resposta})
 
-    # Gerar resposta com IA normalmente
+    # IA normal
     contexto = "\n".join(historico_conversas[numero][-10:])
     prompt = (
         f"Histórico recente com o cliente:\n{contexto}\n\n"
