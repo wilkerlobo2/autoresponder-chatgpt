@@ -22,9 +22,9 @@ def enviar_mensagem(numero, texto):
 
 def agendar_mensagens(numero):
     def lembretes():
-        time.sleep(1800)  # 30 min
+        time.sleep(1800)
         enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
-        time.sleep(5400)  # +90 min
+        time.sleep(5400)
         enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
     threading.Thread(target=lembretes).start()
 
@@ -35,7 +35,6 @@ def contem_caracteres_parecidos(texto):
 def responder():
     data = request.get_json()
     query = data.get("query", {})
-
     numero = query.get("sender", "").strip()
     mensagem = query.get("message", "").strip().lower()
     resposta = []
@@ -45,18 +44,15 @@ def responder():
 
     if numero not in historico_conversas:
         historico_conversas[numero] = []
-        mensagem_boas_vindas = (
-            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-            "Vamos começar seu teste gratuito?\n\n"
-            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-        )
-        historico_conversas[numero].append("IA: Mensagem de boas-vindas enviada")
-        return jsonify({"replies": [{"message": mensagem_boas_vindas}]})
+        resposta.append({"message": "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\nVamos começar seu teste gratuito?\n\nMe diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."})
+        historico_conversas[numero].append("IA: Enviou boas-vindas")
+        return jsonify({"replies": resposta})
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
-    contexto = "\n".join(historico_conversas[numero][-15:])
+    contexto = "\n".join(historico_conversas[numero][-20:])
 
-    if "instalei" in mensagem and numero not in usuarios_com_login_enviado:
+    # Se o cliente disse que já instalou
+    if any(palavra in mensagem for palavra in ["instalei", "baixei", "já tenho", "pronto"]) and numero not in usuarios_com_login_enviado:
         historico = "\n".join(historico_conversas[numero])
         webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
 
@@ -75,13 +71,21 @@ def responder():
             resposta.append({"message": f"⚠️ Erro na geração do login: {str(e)}"})
         return jsonify({"replies": resposta})
 
+    # Se cliente mencionou Samsung, ofereça o Xcloud primeiro
+    if "samsung" in mensagem and "xcloud" not in contexto.lower():
+        historico_conversas[numero].append("IA: Indicou Xcloud para Samsung")
+        return jsonify({"replies": [{
+            "message": "Para usar IPTV na sua TV Samsung, baixe o app *Xcloud* (ícone verde e preto). Após instalar, me avise dizendo 'instalei' que gero seu acesso. 😉"
+        }]})
+
     prompt = (
-        "Você está atendendo um cliente no WhatsApp sobre IPTV. Seja educado, natural, criativo e útil.\n"
-        "Fale como um humano, evite repetir frases, e conduza a conversa de forma inteligente.\n"
-        "Se o cliente disser que já instalou o app, responda apenas com algo breve como 'Gerando seu acesso...'.\n\n"
+        "Você está atendendo um cliente no WhatsApp sobre IPTV. Seja educado, natural e útil.\n"
+        "Se o cliente disser que já instalou o app, apenas diga que está gerando o login.\n"
+        "Para Samsung, recomende o app Xcloud primeiro, sem mencionar outros.\n"
+        "Só gere o login após o cliente confirmar que instalou o app.\n\n"
         f"Histórico:\n{contexto}\n\n"
         f"Mensagem mais recente: '{mensagem}'\n\n"
-        "Responda:"
+        "Responda como se fosse um atendente real:"
     )
 
     try:
