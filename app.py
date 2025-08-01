@@ -14,18 +14,27 @@ usuarios_com_login_enviado = set()
 WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
-def enviar_mensagem(numero, texto):
-    requests.post("https://api.autoresponder.chat/send", json={
-        "number": numero,
-        "message": texto
-    })
+IMAGENS_APPS = {
+    "xcloud": "https://telegra.ph/file/f16e6f12bca2faed372d7.jpg",
+    "duplecast": "https://telegra.ph/file/49689c1148710b86e0213.jpg",
+    "smartone": "https://telegra.ph/file/97b991401cf652fc0912f.jpg",
+    "ottplayer": "https://telegra.ph/file/42b6595692f1318a81cb4.jpg",
+    "xtream": "https://telegra.ph/file/6c2e1446c4a4e229c9d83.jpg",
+    "smarters": "https://telegra.ph/file/7032fd15ef1aa6580b9a2.jpg"
+}
+
+def enviar_mensagem(numero, texto, imagem=None):
+    payload = {"number": numero, "message": texto}
+    if imagem:
+        payload["media"] = imagem
+    requests.post("https://api.autoresponder.chat/send", json=payload)
 
 def agendar_mensagens(numero):
     def lembretes():
         time.sleep(1800)
-        enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
+        enviar_mensagem(numero, "⏳ O teste já está rolando há 30 minutos. Deu tudo certo com o app?")
         time.sleep(5400)
-        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
+        enviar_mensagem(numero, "⌛ O teste terminou! Temos planos a partir de *R$26,00*. Quer ver as opções?")
     threading.Thread(target=lembretes).start()
 
 def contem_caracteres_parecidos(texto):
@@ -44,17 +53,22 @@ def responder():
 
     if numero not in historico_conversas:
         historico_conversas[numero] = []
-        resposta.append({"message": "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\nVamos começar seu teste gratuito?\n\nMe diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."})
-        historico_conversas[numero].append("IA: Enviou boas-vindas")
-        return jsonify({"replies": resposta})
+        boas_vindas = (
+            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+            "Vamos começar seu teste gratuito?\n\n"
+            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        )
+        return jsonify({"replies": [{"message": boas_vindas}]})
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
-    contexto = "\n".join(historico_conversas[numero][-20:])
+    contexto = "\n".join(historico_conversas[numero][-15:])
 
-    # Se o cliente disse que já instalou
-    if any(palavra in mensagem for palavra in ["instalei", "baixei", "já tenho", "pronto"]) and numero not in usuarios_com_login_enviado:
+    if "instalei" in mensagem and numero not in usuarios_com_login_enviado:
         historico = "\n".join(historico_conversas[numero])
-        webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
+        if "samsung" in historico:
+            webhook = WEBHOOK_SAMSUNG
+        else:
+            webhook = WEBHOOK_GERAL
 
         try:
             r = requests.get(webhook)
@@ -71,32 +85,36 @@ def responder():
             resposta.append({"message": f"⚠️ Erro na geração do login: {str(e)}"})
         return jsonify({"replies": resposta})
 
-    # Se cliente mencionou Samsung, ofereça o Xcloud primeiro
-    if "samsung" in mensagem and "xcloud" not in contexto.lower():
-        historico_conversas[numero].append("IA: Indicou Xcloud para Samsung")
-        return jsonify({"replies": [{
-            "message": "Para usar IPTV na sua TV Samsung, baixe o app *Xcloud* (ícone verde e preto). Após instalar, me avise dizendo 'instalei' que gero seu acesso. 😉"
-        }]})
-
     prompt = (
-        "Você está atendendo um cliente no WhatsApp sobre IPTV. Seja educado, natural e útil.\n"
-        "Se o cliente disser que já instalou o app, apenas diga que está gerando o login.\n"
-        "Para Samsung, recomende o app Xcloud primeiro, sem mencionar outros.\n"
-        "Só gere o login após o cliente confirmar que instalou o app.\n\n"
+        "Você está atendendo um cliente de IPTV no WhatsApp.\n"
+        "Responda de forma curta, natural e objetiva. Tipo linha de produção.\n"
+        "Se o cliente disser o modelo da TV, indique o app correto e envie o link da imagem do app junto.\n"
+        "Se ele disser 'instalei' ou 'baixei', gere o login via webhook e envie.\n"
+        "Use respostas simples e claras.\n\n"
         f"Histórico:\n{contexto}\n\n"
         f"Mensagem mais recente: '{mensagem}'\n\n"
-        "Responda como se fosse um atendente real:"
+        "Responda:"
     )
 
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
+            temperature=0.6,
         )
         texto = response.choices[0].message.content.strip()
+
+        imagem = None
+        for chave, url in IMAGENS_APPS.items():
+            if chave in texto.lower():
+                imagem = url
+                break
+
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
+        if imagem:
+            resposta.append({"message": imagem})
+
     except Exception as e:
         resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
