@@ -22,9 +22,9 @@ def enviar_mensagem(numero, texto):
 
 def agendar_mensagens(numero):
     def lembretes():
-        time.sleep(1800)  # 30 min
+        time.sleep(1800)
         enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
-        time.sleep(5400)  # +90 min = 2h depois
+        time.sleep(5400)
         enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
     threading.Thread(target=lembretes).start()
 
@@ -34,9 +34,8 @@ def contem_caracteres_parecidos(texto):
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
-    query = data.get("query", {})
-    numero = query.get("sender", "").strip()
-    mensagem = query.get("message", "").strip().lower()
+    numero = data.get("name", "").strip()
+    mensagem = data.get("message", "").strip().lower()
     resposta = []
 
     if not numero or not mensagem:
@@ -44,12 +43,19 @@ def responder():
 
     if numero not in historico_conversas:
         historico_conversas[numero] = []
+        mensagem_boas_vindas = (
+            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+            "Vamos começar seu teste gratuito?\n\n"
+            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        )
+        resposta.append({"message": mensagem_boas_vindas})
+        historico_conversas[numero].append("IA: Mensagem inicial enviada")
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
     if "instalei" in mensagem and numero not in usuarios_com_login_enviado:
-        historico = "\n".join(historico_conversas[numero])
+        historico = "\n".join(historico_conversas[numero]).lower()
         if "samsung" in historico:
             webhook = WEBHOOK_SAMSUNG
         else:
@@ -73,7 +79,8 @@ def responder():
     prompt = (
         "Você está atendendo um cliente no WhatsApp sobre IPTV. Seja educado, natural, criativo e útil.\n"
         "Fale como um humano, evite repetir frases, e conduza a conversa de forma inteligente.\n"
-        "Se o cliente disser que já instalou o app, responda apenas com algo breve como 'Gerando seu acesso...'.\n\n"
+        "Se o cliente disser que já instalou o app, responda apenas com algo breve como 'Gerando seu acesso...'.\n"
+        "Lembre-se que o app principal para TVs é o *Xcloud*. Use ele como prioridade quando possível.\n\n"
         f"Histórico:\n{contexto}\n\n"
         f"Mensagem mais recente: '{mensagem}'\n\n"
         "Responda:"
