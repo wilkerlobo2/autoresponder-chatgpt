@@ -5,7 +5,10 @@ import requests
 import os
 
 app = Flask(__name__)
+
+# Carrega a chave da variável de ambiente
 openai.api_key = os.getenv("OPENAI_API_KEY")
+print("🔑 Chave usada:", openai.api_key)  # Mostra no log do Render
 
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
@@ -47,7 +50,8 @@ def gerar_login(webhook):
             return msg + "\n\n⏳ *Seu teste dura 3 horas.*" + aviso
         else:
             return "❌ Erro ao gerar o login. Tente novamente em instantes."
-    except:
+    except Exception as e:
+        print("Erro ao gerar login:", e)
         return "⚠️ Erro ao conectar com o servidor de testes."
 
 @app.route("/", methods=["POST"])
@@ -106,7 +110,8 @@ def responder():
             resposta.append({"message": texto})
 
     except Exception as e:
-        resposta.append({"message": "⚠️ Ocorreu um erro ao processar sua mensagem. Tente novamente em instantes."})
+        print("❌ Erro no ChatCompletion:", e)
+        resposta.append({"message": "⚠️ Ocorreu um erro: " + str(e)})
 
     return jsonify({"replies": resposta})
 
