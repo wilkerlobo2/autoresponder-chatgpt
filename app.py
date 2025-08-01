@@ -3,7 +3,6 @@ from openai import OpenAI
 import os
 import threading
 import time
-import re
 import requests
 
 app = Flask(__name__)
@@ -23,13 +22,11 @@ def enviar_mensagem(numero, texto):
 
 def agendar_mensagens(numero):
     def lembretes():
-        time.sleep(1800)
+        time.sleep(1800)  # 30 minutos
         enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
-        time.sleep(5400)
+        time.sleep(5400)  # +90 minutos = 2h depois
         enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
-
-    t = threading.Thread(target=lembretes)
-    t.start()
+    threading.Thread(target=lembretes).start()
 
 def contem_caracteres_parecidos(texto):
     return any(c in texto for c in ['I', 'l', 'O', '0'])
@@ -37,10 +34,12 @@ def contem_caracteres_parecidos(texto):
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
-    nome = data.get("name", "")
-    numero = nome.strip()
+    numero = data.get("name", "").strip()
     mensagem = data.get("message", "").strip().lower()
     resposta = []
+
+    if not numero or not mensagem:
+        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida. Tente novamente."}]})
 
     if numero not in historico_conversas:
         historico_conversas[numero] = []
@@ -59,11 +58,11 @@ def responder():
             r = requests.get(webhook)
             if r.status_code == 200:
                 login = r.text.strip()
-                aviso = "\n\n⚠️ Atenção aos caracteres parecidos, como I (i maiúsculo), l (L minúsculo), O (letra O) e 0 (número zero). Digite com cuidado!"
+                aviso = "\n\n⚠️ Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com cuidado!"
                 resposta.append({"message": f"🔓 Pronto! Aqui está seu login de teste:\n\n{login}" + (aviso if contem_caracteres_parecidos(login) else "")})
                 usuarios_com_login_enviado.add(numero)
                 agendar_mensagens(numero)
-                historico_conversas[numero].append(f"IA: Login enviado")
+                historico_conversas[numero].append("IA: Login enviado")
             else:
                 resposta.append({"message": "⚠️ Erro ao gerar login. Tente novamente em instantes."})
         except Exception as e:
@@ -88,7 +87,6 @@ def responder():
         texto = response.choices[0].message.content.strip()
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
-
     except Exception as e:
         resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
