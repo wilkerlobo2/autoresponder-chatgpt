@@ -14,13 +14,11 @@ WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 historico_conversas = {}
 
 def gerar_boas_vindas(nome):
-    if nome.startswith("+55"):
-        return (
-            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-            "Vamos começar seu teste gratuito?\n\n"
-            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-        )
-    return None
+    return (
+        "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+        "Vamos começar seu teste gratuito?\n\n"
+        "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+    )
 
 def gerar_login(webhook):
     try:
@@ -61,19 +59,20 @@ def responder():
     mensagem = data.get("message", "").lower()
     resposta = []
 
-    # Salvar histórico da conversa
+    # Armazenar o histórico do número
     if numero not in historico_conversas:
         historico_conversas[numero] = []
+
     historico_conversas[numero].append(f"Cliente: {mensagem}")
 
-    # Boas-vindas
-    boasvindas = gerar_boas_vindas(numero)
-    if boasvindas:
+    # Enviar boas-vindas apenas na primeira mensagem
+    if len(historico_conversas[numero]) == 1:
+        boasvindas = gerar_boas_vindas(numero)
         historico_conversas[numero].append(f"IA: {boasvindas}")
         resposta.append({"message": boasvindas})
         return jsonify({"replies": resposta})
 
-    # Montar prompt com contexto da conversa
+    # Montar o prompt com histórico
     contexto = "\n".join(historico_conversas[numero][-8:])
 
     prompt = (
