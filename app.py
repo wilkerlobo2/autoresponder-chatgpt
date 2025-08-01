@@ -10,15 +10,8 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
-# Armazenamento temporário de conversas por número (em memória RAM)
+# Armazenamento temporário de conversas
 historico_conversas = {}
-
-def gerar_boas_vindas(nome):
-    return (
-        "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-        "Vamos começar seu teste gratuito?\n\n"
-        "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-    )
 
 def gerar_login(webhook):
     try:
@@ -59,41 +52,35 @@ def responder():
     mensagem = data.get("message", "").lower()
     resposta = []
 
-    # Armazenar o histórico do número
     if numero not in historico_conversas:
         historico_conversas[numero] = []
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
 
-    # Enviar boas-vindas apenas na primeira mensagem
-    if len(historico_conversas[numero]) == 1:
-        boasvindas = gerar_boas_vindas(numero)
-        historico_conversas[numero].append(f"IA: {boasvindas}")
-        resposta.append({"message": boasvindas})
-        return jsonify({"replies": resposta})
-
-    # Montar o prompt com histórico
-    contexto = "\n".join(historico_conversas[numero][-8:])
+    # Montar prompt com contexto
+    contexto = "\n".join(historico_conversas[numero][-10:])
 
     prompt = (
         f"Histórico recente com o cliente:\n{contexto}\n\n"
         f"Mensagem mais recente: '{mensagem}'\n\n"
-        "Interprete com inteligência e responda conforme as regras abaixo:\n\n"
-        "1. Convide para teste grátis e pergunte o aparelho.\n"
-        "2. Se mencionar Roku, LG, Samsung, Philco: indicar *Xcloud*.\n"
-        "3. Android, TV Box, Celular, Fire Stick: indicar *Xtream IPTV Player*.\n"
-        "4. iPhone/iOS ou computador: indicar *Smarters Player Lite*.\n"
-        "5. AOC/Philips: indicar *OTT Player* ou *Duplecast* (pedir QR).\n"
-        "6. Se usar SmartOne, pedir MAC.\n"
-        "7. Se disser que já instalou (ex: 'instalei', 'baixei'), gerar login.\n"
-        f"   - Use {WEBHOOK_XCLOUD} se for Xcloud.\n"
-        f"   - Use {WEBHOOK_GERAL} para os demais.\n"
-        "8. Sempre seja criativo e claro.\n"
-        "9. Não diga 'colar o login'. Use 'digitar o login'.\n"
-        "10. Se disser que terminou o teste, envie planos.\n"
-        "11. Se der erro, oriente a reenviar ou mandar print.\n"
-        "12. Explique o que é IPTV se perguntar.\n\n"
-        "Apenas responda com o texto exato que a IA deve enviar no WhatsApp."
+        "Responda como um atendente inteligente e criativo de IPTV. Siga as regras abaixo:\n\n"
+        "1. Cumprimente de forma natural se ainda não cumprimentou.\n"
+        "2. Se o cliente mencionar o dispositivo (Roku, LG, Samsung, Android, iPhone, PC, etc), recomende o app certo:\n"
+        "   - Roku, LG, Samsung, Philco: *Xcloud*\n"
+        "   - Android, TV Box, Celular, Fire Stick: *Xtream IPTV Player*\n"
+        "   - iPhone/iOS ou computador: *Smarters Player Lite*\n"
+        "   - AOC/Philips: *OTT Player* ou *Duplecast* (peça o QR code)\n"
+        "3. Se o cliente disser que já instalou o app (ex: 'instalei', 'baixei', 'pronto'), responda que está gerando o login.\n"
+        f"   - Use o webhook {WEBHOOK_XCLOUD} para Xcloud\n"
+        f"   - Use o webhook {WEBHOOK_GERAL} para os demais\n"
+        "4. Nunca diga 'colar o login', diga 'digitar o login'.\n"
+        "5. Após o envio do login, oriente com clareza. Avise que o teste dura 3 horas.\n"
+        "6. Se o teste terminar, envie os planos:\n"
+        "   - R$ 26 (1 mês), R$ 47 (2 meses), R$ 68 (3 meses), R$ 129 (6 meses), R$ 185 (1 ano)\n"
+        "7. Seja criativo, natural e amigável.\n"
+        "8. Se o cliente perguntar o que é IPTV, explique de forma simples.\n"
+        "9. Se o cliente enviar foto, áudio ou algo que não entenda, diga que vai aguardar um atendente humano.\n\n"
+        "Responda com o texto exato a ser enviado no WhatsApp."
     )
 
     try:
@@ -105,6 +92,7 @@ def responder():
         texto = response.choices[0].message.content
         historico_conversas[numero].append(f"IA: {texto}")
 
+        # Se cliente disse que já instalou, gerar login
         if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
             if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
                 login = gerar_login(WEBHOOK_XCLOUD)
@@ -117,7 +105,7 @@ def responder():
             resposta.append({"message": texto})
 
     except Exception as e:
-        resposta.append({"message": f"⚠️ Ocorreu um erro: {str(e)}"})
+        resposta.append({"message": f"⚠️ Ocorreu um erro ao gerar a resposta: {str(e)}"})
 
     return jsonify({"replies": resposta})
 
