@@ -10,12 +10,12 @@ historico_conversas = {}
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
-    print("📥 Dados recebidos:", data)  # DEBUG: mostra todo o JSON recebido
+    print("📥 Dados recebidos:", data, flush=True)
 
     nome = data.get("name", "")
     numero = nome.strip()
     mensagem = data.get("message", "").strip()
-    print("📝 Mensagem recebida:", mensagem)  # DEBUG: mostra o texto da mensagem
+    print("📝 Mensagem recebida:", mensagem, flush=True)
 
     resposta = []
 
@@ -40,11 +40,14 @@ def responder():
             temperature=0.7,
         )
         texto = response.choices[0].message.content
+        print("🤖 Resposta gerada:", texto, flush=True)
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
 
     except Exception as e:
-        resposta.append({"message": f"⚠️ Erro: {str(e)}"})
+        erro = f"⚠️ Erro: {str(e)}"
+        print(erro, flush=True)
+        resposta.append({"message": erro})
 
     return jsonify({"replies": resposta})
 
