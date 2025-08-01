@@ -10,9 +10,13 @@ historico_conversas = {}
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
+    print("📥 Dados recebidos:", data)  # DEBUG: mostra todo o JSON recebido
+
     nome = data.get("name", "")
     numero = nome.strip()
     mensagem = data.get("message", "").strip()
+    print("📝 Mensagem recebida:", mensagem)  # DEBUG: mostra o texto da mensagem
+
     resposta = []
 
     if numero not in historico_conversas:
