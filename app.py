@@ -10,8 +10,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
-# Armazenamento temporário de conversas
+# Memória de conversas por número
 historico_conversas = {}
+status_conversa = {}  # novo controle do estado do atendimento
 
 def gerar_login(webhook):
     try:
@@ -54,33 +55,35 @@ def responder():
 
     if numero not in historico_conversas:
         historico_conversas[numero] = []
+        status_conversa[numero] = {
+            "cumprimentado": False,
+            "app_recomendado": False,
+            "login_enviado": False
+        }
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
+    estado = status_conversa[numero]
 
-    # Montar prompt com contexto
     contexto = "\n".join(historico_conversas[numero][-10:])
 
     prompt = (
         f"Histórico recente com o cliente:\n{contexto}\n\n"
         f"Mensagem mais recente: '{mensagem}'\n\n"
-        "Responda como um atendente inteligente e criativo de IPTV. Siga as regras abaixo:\n\n"
-        "1. Cumprimente de forma natural se ainda não cumprimentou.\n"
-        "2. Se o cliente mencionar o dispositivo (Roku, LG, Samsung, Android, iPhone, PC, etc), recomende o app certo:\n"
-        "   - Roku, LG, Samsung, Philco: *Xcloud*\n"
-        "   - Android, TV Box, Celular, Fire Stick: *Xtream IPTV Player*\n"
-        "   - iPhone/iOS ou computador: *Smarters Player Lite*\n"
-        "   - AOC/Philips: *OTT Player* ou *Duplecast* (peça o QR code)\n"
-        "3. Se o cliente disser que já instalou o app (ex: 'instalei', 'baixei', 'pronto'), responda que está gerando o login.\n"
-        f"   - Use o webhook {WEBHOOK_XCLOUD} para Xcloud\n"
-        f"   - Use o webhook {WEBHOOK_GERAL} para os demais\n"
-        "4. Nunca diga 'colar o login', diga 'digitar o login'.\n"
-        "5. Após o envio do login, oriente com clareza. Avise que o teste dura 3 horas.\n"
+        "Você é um atendente de IPTV que entende o cliente e responde com naturalidade e criatividade. Siga as regras:\n\n"
+        "1. Cumprimente apenas se ainda não cumprimentou.\n"
+        "2. Se o cliente disser o nome do dispositivo, recomende o app correto:\n"
+        "   - Roku, LG, Samsung, Philco: Xcloud\n"
+        "   - Android, TV Box, Celular, Fire Stick: Xtream IPTV Player\n"
+        "   - iPhone/iOS ou computador: Smarters Player Lite\n"
+        "   - AOC/Philips: OTT Player ou Duplecast (peça QR code)\n"
+        "3. Se o cliente disser que já instalou (ex: 'instalei', 'baixei'), diga que está gerando o login e envie.\n"
+        "4. Nunca diga 'colar o login'. Use 'digitar o login'.\n"
+        "5. Após o login, oriente e diga que o teste dura 3 horas.\n"
         "6. Se o teste terminar, envie os planos:\n"
-        "   - R$ 26 (1 mês), R$ 47 (2 meses), R$ 68 (3 meses), R$ 129 (6 meses), R$ 185 (1 ano)\n"
-        "7. Seja criativo, natural e amigável.\n"
-        "8. Se o cliente perguntar o que é IPTV, explique de forma simples.\n"
-        "9. Se o cliente enviar foto, áudio ou algo que não entenda, diga que vai aguardar um atendente humano.\n\n"
-        "Responda com o texto exato a ser enviado no WhatsApp."
+        "   - R$26 (1 mês), R$47 (2 meses), R$68 (3 meses), R$129 (6 meses), R$185 (1 ano)\n"
+        "7. Explique o que é IPTV se perguntarem.\n"
+        "8. Se o cliente enviar algo que não entenda (ex: foto, áudio), diga que vai aguardar um atendente humano.\n\n"
+        "Responda com o texto exato que deve ser enviado no WhatsApp."
     )
 
     try:
@@ -89,23 +92,29 @@ def responder():
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
         )
-        texto = response.choices[0].message.content
+        texto = response.choices[0].message.content.strip()
         historico_conversas[numero].append(f"IA: {texto}")
 
-        # Se cliente disse que já instalou, gerar login
-        if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
+        # Cumprimentar só se ainda não cumprimentou
+        if not estado["cumprimentado"]:
+            estado["cumprimentado"] = True
+
+        # Enviar login se cliente disser que instalou
+        if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]) and not estado["login_enviado"]:
+            estado["login_enviado"] = True
+
             if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
                 login = gerar_login(WEBHOOK_XCLOUD)
             else:
                 login = gerar_login(WEBHOOK_GERAL)
 
-            resposta.append({"message": f"Aqui está seu login de teste:\n\n{login}"})
+            resposta.append({"message": f"{texto}\n\nAqui está seu login de teste:\n\n{login}"})
             resposta.append({"message": "⏳ Em breve vou perguntar se deu tudo certo com seu teste. 😉"})
         else:
             resposta.append({"message": texto})
 
     except Exception as e:
-        resposta.append({"message": f"⚠️ Ocorreu um erro ao gerar a resposta: {str(e)}"})
+        resposta.append({"message": f"⚠️ Ocorreu um erro: {str(e)}"})
 
     return jsonify({"replies": resposta})
 
