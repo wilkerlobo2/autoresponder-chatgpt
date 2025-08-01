@@ -1,14 +1,13 @@
 from flask import Flask, request, jsonify
-import openai
+from openai import OpenAI
+import os
 import re
 import requests
-import os
 
 app = Flask(__name__)
 
-# Carrega a chave da variável de ambiente
-openai.api_key = os.getenv("OPENAI_API_KEY")
-print("🔑 Chave usada:", openai.api_key)  # Mostra no log do Render
+# Inicializa o cliente OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 WEBHOOK_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
@@ -50,8 +49,7 @@ def gerar_login(webhook):
             return msg + "\n\n⏳ *Seu teste dura 3 horas.*" + aviso
         else:
             return "❌ Erro ao gerar o login. Tente novamente em instantes."
-    except Exception as e:
-        print("Erro ao gerar login:", e)
+    except:
         return "⚠️ Erro ao conectar com o servidor de testes."
 
 @app.route("/", methods=["POST"])
@@ -89,15 +87,14 @@ def responder():
     )
 
     try:
-        resposta_ia = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
         )
+        texto = response.choices[0].message.content
 
-        texto = resposta_ia.choices[0].message["content"]
-
-        # Cliente disse que instalou
+        # Detecta se o cliente disse que instalou
         if any(p in mensagem for p in ["instalei", "baixei", "pronto", "foi", "baixado"]):
             if any(x in mensagem for x in ["roku", "samsung", "lg", "philco", "xcloud"]):
                 login = gerar_login(WEBHOOK_XCLOUD)
@@ -110,8 +107,7 @@ def responder():
             resposta.append({"message": texto})
 
     except Exception as e:
-        print("❌ Erro no ChatCompletion:", e)
-        resposta.append({"message": "⚠️ Ocorreu um erro: " + str(e)})
+        resposta.append({"message": f"⚠️ Ocorreu um erro: {str(e)}"})
 
     return jsonify({"replies": resposta})
 
