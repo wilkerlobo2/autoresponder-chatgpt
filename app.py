@@ -22,9 +22,9 @@ def enviar_mensagem(numero, texto):
 
 def agendar_mensagens(numero):
     def lembretes():
-        time.sleep(1800)  # 30 minutos
+        time.sleep(1800)  # 30 min
         enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
-        time.sleep(5400)  # +90 minutos = 2h depois
+        time.sleep(5400)  # +90 min = 2h depois
         enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
     threading.Thread(target=lembretes).start()
 
@@ -34,8 +34,9 @@ def contem_caracteres_parecidos(texto):
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
-    numero = data.get("name", "").strip()
-    mensagem = data.get("message", "").strip().lower()
+    query = data.get("query", {})
+    numero = query.get("sender", "").strip()
+    mensagem = query.get("message", "").strip().lower()
     resposta = []
 
     if not numero or not mensagem:
