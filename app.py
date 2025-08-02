@@ -4,45 +4,38 @@ import os
 
 app = Flask(__name__)
 
-# Seu número (que tem o AutoReply ativado)
-SEU_NUMERO_WHATSAPP = "seu_numero_completo_com_55"
+SEU_NUMERO_WHATSAPP = "5598999999999"  # Substitua pelo seu número com DDI
 
-# Função que simula o cliente enviando "91" para o seu número
-def simular_cliente_enviando_91(numero_cliente):
-    url_envio = "https://api.autoresponder.chat/send"
+def simular_envio_91(numero_cliente):
+    url = "https://api.autoresponder.chat/send"
     payload = {
         "number": SEU_NUMERO_WHATSAPP,
         "message": "91",
         "sender": numero_cliente
     }
-    print(f"Enviando '91' para {SEU_NUMERO_WHATSAPP}, como se fosse o cliente {numero_cliente}")
-    return requests.post(url_envio, json=payload)
+    requests.post(url, json=payload)
 
 @app.route("/", methods=["POST"])
 def responder():
     data = request.json
     query = data.get("query", {})
-    numero_cliente = query.get("from", "")
+    numero = query.get("from", "")
     mensagem = query.get("message", "").strip().lower()
 
-    if not numero_cliente or not mensagem:
+    if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    # Se o cliente disser que já instalou
-    if mensagem in ["instalei", "baixei", "já instalei", "ja instalei", "instalei o app"]:
+    if mensagem in ["instalei", "já instalei", "ja instalei", "baixei", "baixei o app"]:
         try:
-            simular_cliente_enviando_91(numero_cliente)
+            simular_envio_91(numero)
             return jsonify({"replies": [{
-                "message": "🔄 Gerando seu login de teste... Aguarde, em instantes ele será enviado aqui no WhatsApp! 📡"
+                "message": "🔄 Login de teste sendo gerado... Aguarde, em instantes você receberá os dados!"
             }]})
         except Exception as e:
-            return jsonify({"replies": [{
-                "message": f"⚠️ Erro ao solicitar login: {str(e)}"
-            }]})
+            return jsonify({"replies": [{"message": f"❌ Erro ao gerar login: {str(e)}"}]})
 
-    # Mensagem padrão
     return jsonify({"replies": [{
-        "message": "📲 Baixe o app recomendado para sua TV ou aparelho, e envie 'instalei' quando concluir!"
+        "message": "👋 Oi! Quando você instalar o app, envie *instalei* para liberar o login de teste. 📲"
     }]})
 
 
