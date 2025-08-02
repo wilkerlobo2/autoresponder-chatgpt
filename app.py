@@ -30,18 +30,41 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
+    # Se o cliente disser que já instalou o app
+    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei"]):
+        historico = " ".join(historico_conversas[numero]).lower()
+        if "samsung" in historico:
+            codigo = "91"
+        elif any(d in historico for d in ["tv box", "android", "xtream", "celular", "projetor"]):
+            codigo = "555"
+        elif any(d in historico for d in ["iphone", "ios", "computador", "pc", "notebook", "macbook"]):
+            codigo = "224"
+        elif "philco antiga" in historico:
+            codigo = "98"
+        elif "tv antiga" in historico or "smart stb" in historico:
+            codigo = "88"
+        else:
+            codigo = "91"  # padrão
+
+        texto = f"Digite **{codigo}** aqui na conversa para receber seu login. 😉"
+        resposta.append({"message": texto})
+        historico_conversas[numero].append(f"IA: {texto}")
+        return jsonify({"replies": resposta})
+
+    # Prompt para gerar a resposta da IA
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
-        "Use emojis criativos. NÃO envie links ou imagens. "
-        "Oriente o cliente a DIGITAR o número do login no WhatsApp, como 91, 555, 224, 88 ou 98. NÃO gere login, apenas diga o número correto a ser digitado.\n\n"
-        "Regras:\n"
-        "- Samsung (nova): peça para digitar 91\n"
-        "- Android ou TV Box: peça para digitar 555\n"
-        "- Computador ou iPhone: peça para digitar 224\n"
-        "- TV antiga / Smart STB: peça para digitar 88\n"
-        "- Philco antiga: peça para digitar 98\n\n"
-        "Diga algo como: 'Digite *91* aqui na conversa para receber seu login. 😉'\n\n"
-        "Histórico da conversa:\n" + contexto + f"\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
+        "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens.\n\n"
+        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga:\n\n"
+        "'Baixe o app [NOME] 📺⬇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
+        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
+        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
+        "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
+        "Se for iPhone ou computador: Smarters Player Lite.\n"
+        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
+        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
+        "Se for Philco antiga, use o código especial 98.\n\n"
+        f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
     try:
