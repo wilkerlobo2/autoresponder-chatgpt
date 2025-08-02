@@ -21,9 +21,9 @@ def enviar_mensagem(numero, texto):
 def agendar_mensagens(numero):
     def lembretes():
         time.sleep(1800)
-        enviar_mensagem(numero, "⏳ O teste já está rolando há 30 minutos. Deu tudo certo com o app? 😄")
+        enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
         time.sleep(5400)
-        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 💸📺")
+        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
     threading.Thread(target=lembretes).start()
 
 def contem_caracteres_parecidos(texto):
@@ -42,11 +42,7 @@ def responder():
 
     if numero not in historico_conversas:
         historico_conversas[numero] = []
-        boas_vindas = (
-            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-            "Vamos começar seu teste gratuito?\n\n"
-            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-        )
+        boas_vindas = "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\nVamos começar seu teste gratuito?\n\nMe diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
         return jsonify({"replies": [{"message": boas_vindas}]})
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
@@ -72,17 +68,18 @@ def responder():
         return jsonify({"replies": resposta})
 
     prompt = (
-        "Você é um atendente de IPTV via WhatsApp. Atenda de forma direta, objetiva e simpática como uma linha de produção. "
-        "Sempre que o cliente mencionar o aparelho, diga com certeza qual app ele deve baixar (não use 'recomendo', use 'baixe o app ...'). "
-        "Use emojis criativos. NÃO envie imagens ou links. Aguarde o cliente confirmar que instalou para só então dizer que irá gerar o login.\n\n"
-        "Apps por dispositivo:\n"
-        "- Samsung, LG, Roku, Philco nova → Xcloud 📺⬇️📲\n"
-        "- Android, celular, TV Box → Xtream IPTV Player 🤖📲\n"
-        "- iPhone ou computador → Smarters Player Lite 🍎💻\n"
-        "- LG (caso Xcloud não funcione) → Duplecast 🔁 ou SmartOne 🟩 (se for SmartOne, peça o MAC)\n"
-        "- AOC ou Philips → OTT Player 🧩 ou Duplecast 🔁 (peça QR code)\n"
-        "- Philco antiga → usar app especial com código 98 🔢\n\n"
-        f"Histórico:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResposta:"
+        "Você é um atendente de IPTV via WhatsApp. Atenda de forma direta, clara e simpática.\n"
+        "Sempre que o cliente mencionar o aparelho, diga:\n"
+        "'Baixe o app [nome do app] 📺⬇️📲 para [dispositivo]! Me avise quando instalar para que eu envie o seu login.'\n\n"
+        "Apps recomendados por dispositivo:\n"
+        "- Samsung, LG, Roku, Philco nova → Xcloud\n"
+        "- Android, Celular, TV Box → Xtream IPTV Player\n"
+        "- iPhone ou computador → Smarters Player Lite\n"
+        "- LG (caso não funcione o Xcloud) → Duplecast ou SmartOne (se SmartOne, peça o MAC)\n"
+        "- AOC ou Philips → OTT Player ou Duplecast (peça QR code)\n"
+        "- Philco antiga → usar app especial com código 98\n\n"
+        "Se o cliente disser que já instalou, diga apenas 'Gerando seu acesso...'\n\n"
+        f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
     try:
