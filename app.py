@@ -1,29 +1,19 @@
 import os
-import re
 import json
+import re
 import requests
 from flask import Flask, request, jsonify
 from openai import OpenAI
 
-# Inicialização do app Flask
 app = Flask(__name__)
-
-# Inicialização do cliente OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Requisições fixas para geração automática de login
-WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
-WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
-
-# Mensagem de boas-vindas fixa
-BOAS_VINDAS_FIXA = (
+# Mensagem fixa de boas-vindas
+MENSAGEM_BOAS_VINDAS = (
     "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-    "Vamos começar seu teste gratuito?\n"
+    "Vamos começar seu teste gratuito?\n\n"
     "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
 )
-
-# Histórico de conversas por usuário
-usuarios = {}
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -35,71 +25,63 @@ def webhook():
     numero = query.get("sender", "")
     mensagem = query.get("message", "").strip()
 
-    # Se for um novo usuário, envia as boas-vindas fixas
-    if numero not in usuarios:
-        usuarios[numero] = []
-        return jsonify({"replies": [{"message": BOAS_VINDAS_FIXA}]})
+    # Detecta início da conversa para enviar mensagem de boas-vindas
+    if mensagem.lower() in ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"]:
+        return jsonify({"replies": [{"message": MENSAGEM_BOAS_VINDAS}]})
 
-    # Salva mensagem do usuário no histórico
-    usuarios[numero].append({"role": "user", "content": mensagem})
-
-    # Monta o histórico com instruções fixas + mensagens anteriores
-    historico = [
-        {
-            "role": "system",
-            "content": (
-                "Você é um atendente experiente de IPTV. "
-                "Seu trabalho é conduzir de forma natural o atendimento com o cliente, "
-                "ajudando desde a escolha do aplicativo até o envio do login de teste.\n\n"
-                "Regras importantes:\n"
-                "- Use sempre linguagem simples e criativa.\n"
-                "- Sempre indique qual aplicativo deve ser usado para cada TV ou dispositivo, com emojis.\n"
-                "- Aguarde o cliente instalar o app antes de gerar o teste.\n"
-                "- Quando ele disser 'instalei', 'baixei', 'pronto', etc., gere o login automaticamente.\n"
-                "- Para TV Samsung nova use o número 91 (webhook: https://a.opengl.in/chatbot/check/?k=66b125d558).\n"
-                "- Para Android use o número 555 (webhook: https://painelacesso1.com/chatbot/check/?k=76be279cb5).\n"
-                "- Para computador use o número 224 (webhook: https://painelacesso1.com/chatbot/check/?k=76be279cb5).\n"
-                "- Para TVs antigas (Philco, AOC, etc.), use 88.\n"
-                "- Você não deve enviar o número. Só diga algo como: “Gerando seu login…” e chame a URL da webhook.\n"
-                "- Avise o cliente que após 30 minutos você vai perguntar se deu certo, e após 3 horas o teste acaba.\n"
-                "- Sempre alerte sobre letras parecidas (I, l, O, 0) após enviar o login.\n"
-                "- Se o cliente pedir planos, informe os valores após 3 horas.\n"
-                "- NUNCA diga o tempo do teste no início.\n"
-                "- Não repita perguntas. Não sugira apps errados.\n"
-                "- Se o cliente já tiver o app instalado (ex: SmartOne), peça o MAC. Se for Duplecast, oriente o QR code.\n"
-            ),
-        }
-    ] + usuarios[numero]
-
+    # Geração da resposta com a IA
     try:
         resposta_ia = client.chat.completions.create(
             model="gpt-4",
-            messages=historico,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Você é um atendente de suporte IPTV. "
+                        "Seu papel é orientar o cliente de forma clara, direta e natural, com frases curtas e eficientes. "
+                        "Sempre que o cliente disser que já instalou o app, instrua a digitar o número correspondente: \n\n"
+                        "- 91 → TV Samsung nova (Xcloud)\n"
+                        "- 88 → TV antiga (Smart STB + DNS)\n"
+                        "- 555 → Celular, TV Box ou Android TV\n"
+                        "- 224 → Computador ou iPhone\n\n"
+                        "Evite enviar o número diretamente. Deixe o cliente digitar. "
+                        "Se o cliente estiver testando, após cerca de 30 minutos, pergunte se funcionou bem. "
+                        "Após 3h, diga que o teste expirou e apresente os planos com emojis e criatividade. "
+                        "Se o login tiver letras parecidas como I/l ou O/0, avise o cliente para digitar com atenção.\n\n"
+                        "Apenas aja com base no que o cliente disser. Não peça informações desnecessárias. "
+                        "Se ele disser 'já tenho o app Xcloud', apenas diga 'Perfeito! Pode digitar o número 91 para receber seu login de teste!'."
+                    )
+                },
+                {"role": "user", "content": mensagem}
+            ]
         )
-        texto = resposta_ia.choices[0].message.content.strip()
-        usuarios[numero].append({"role": "assistant", "content": texto})
-        return jsonify({"replies": [{"message": texto}]})
+        texto_resposta = resposta_ia.choices[0].message.content.strip()
+        return jsonify({"replies": [{"message": texto_resposta}]})
     except Exception as e:
-        return jsonify({"replies": [{"message": f"Erro ao processar: {str(e)}"}]})
+        return jsonify({"replies": [{"message": "Erro ao gerar resposta com IA."}]})
 
+
+# Endpoint opcional para funcionar com números fixos (como 91, 555, 88 etc.)
 @app.route("/autoreply", methods=["POST"])
 def autoreply():
     data = request.json
     if not data or "query" not in data:
-        return jsonify({"replies": [{"message": "Requisição inválida."}]})
+        return jsonify({"replies": [{"message": "Mensagem inválida recebida."}]})
 
-    mensagem = data["query"].get("message", "").strip()
+    query = data["query"]
+    mensagem = query.get("message", "").strip()
 
-    # Requisições manuais (por número, usadas via AutoReply)
+    # Regras fixas para códigos específicos
     if mensagem == "91":
-        resp = requests.get(WEBHOOK_SAMSUNG)
-        return jsonify({"replies": [{"message": resp.text}]})
-
-    elif mensagem in ["555", "224", "88"]:
-        resp = requests.get(WEBHOOK_GERAL)
-        return jsonify({"replies": [{"message": resp.text}]})
-
-    return jsonify({"replies": [{"message": "Código inválido."}]})
+        return jsonify({"replies": [{"message": "Aguarde... Enviando seu login de teste para TV Samsung com app Xcloud 📺✅"}]})
+    elif mensagem == "555":
+        return jsonify({"replies": [{"message": "Aguarde... Enviando seu login de teste para Android (celular, TV box, etc.) 🤖✅"}]})
+    elif mensagem == "88":
+        return jsonify({"replies": [{"message": "Enviando login de teste via SMART STB! Instale o app e siga as instruções. 📺🛠️"}]})
+    elif mensagem == "224":
+        return jsonify({"replies": [{"message": "Gerando login de teste para computador ou iPhone! 💻📱"}]})
+    else:
+        return jsonify({"replies": [{"message": "Número inválido. Tente novamente."}]})
 
 
 if __name__ == "__main__":
