@@ -1,86 +1,37 @@
 from flask import Flask, request, jsonify
-import re
 
 app = Flask(__name__)
 
-@app.route('/')
+# 👥 Atendimento principal do AutoResponder (mensagens inteligentes)
+@app.route('/', methods=['POST'])
 def index():
-    return 'Webhook online!'
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
     data = request.get_json()
-
     query = data.get("query", {})
-    numero = query.get("sender", "")
-    mensagem = query.get("message", "").strip().lower()
+    user = query.get("sender", "")
+    message = query.get("message", "").lower()
 
     respostas = []
 
-    if not numero or not mensagem:
-        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
+    # 👋 Boas-vindas
+    if "oi" in message or "olá" in message:
+        respostas.append({"message": "👋 Oi! Tudo bem? Quer fazer um teste grátis de IPTV com canais, filmes e séries? Me diga qual dispositivo você quer usar (TV, celular, computador...)."})
 
-    # ✅ Reconhece "instalei" ou similares
-    if any(palavra in mensagem for palavra in ["instalei", "baixei", "já instalei", "já baixei"]):
-        respostas.append({
-            "message": "✅ Que bom que já instalou!\n\nAgora digite o número *91* aqui no WhatsApp para ativar seu login de teste. 😉"
-        })
+    # ⬇️ Cliente disse que instalou o app
+    elif "instalei" in message or "baixei" in message:
+        respostas.append({"message": "✅ Perfeito! Para liberar seu login, por favor digite o número correspondente ao seu aparelho:\n\n📺 Samsung: *91*\n📺 TV antiga / Smart STB: *88*\n📲 Android ou iPhone: *555*"})
 
-    # ✅ Sugere aplicativo para Samsung, com emoji
-    elif "samsung" in mensagem:
-        respostas.append({
-            "message": "📺 Sua TV é Samsung, né?\n\nBaixe o app *Xcloud* 📲⬇️ e me avise quando terminar a instalação pra liberar o login de teste."
-        })
+    # ❓ Ajuda
+    elif "ajuda" in message or "suporte" in message:
+        respostas.append({"message": "📞 Precisa de ajuda? Me diga qual é o seu dispositivo (TV LG, Samsung, celular, etc.) que eu te explico direitinho o que fazer!"})
 
-    # ✅ Para LG
-    elif "lg" in mensagem:
-        respostas.append({
-            "message": "📺 Para TV LG, baixe o app *Xcloud* 📲⬇️. Caso não funcione, testamos o *Duplecast* ou *SmartOne*.\n\nMe avise quando instalar pra gente liberar o teste."
-        })
-
-    # ✅ Para Roku
-    elif "roku" in mensagem:
-        respostas.append({
-            "message": "📺 Na Roku, baixe primeiro o app *Xcloud* 📲⬇️.\nSe não funcionar, testamos o *OTT Player* depois.\n\nMe avise quando instalar!"
-        })
-
-    # ✅ Para Android
-    elif "android" in mensagem or "tv box" in mensagem or "projetor" in mensagem:
-        respostas.append({
-            "message": "📲 Para Android, baixe o app *Xtream IPTV Player* (ícone com losango laranja e roxo).\n\nMe avise quando instalar pra liberar o teste."
-        })
-
-    # ✅ Para iPhone
-    elif "iphone" in mensagem or "ios" in mensagem:
-        respostas.append({
-            "message": "📱 Para iPhone, baixe o app *Smarters Player Lite* (ícone azul claro).\n\nDepois me avise com 'instalei' pra liberar o teste!"
-        })
-
-    # ✅ Para computador
-    elif "computador" in mensagem or "pc" in mensagem or "notebook" in mensagem:
-        respostas.append({
-            "message": "🖥️ Para usar no computador, me avise que eu te passo o link do painel e login.\n\nMe diga apenas se prefere usar no navegador ou baixar o app."
-        })
-
-    # ✅ Caso diga apenas a marca da TV (ex: Philco)
-    elif "philco" in mensagem:
-        respostas.append({
-            "message": "📺 Sua TV é Philco?\nSe for nova, usamos o app *Xcloud*. Se for antiga, talvez precise digitar o número *98* para ativar o teste.\n\nMe avise qual é o caso!"
-        })
-
-    elif mensagem in ["ola", "oi", "bom dia", "boa tarde", "boa noite"]:
-        respostas.append({
-            "message": "👋 Olá! Oferecemos canais, filmes e séries via IPTV com teste grátis por 3 horas.\n\nQual é o seu dispositivo ou modelo de TV pra te indicar o melhor app?"
-        })
-
+    # 🧠 Mensagem genérica
     else:
-        respostas.append({
-            "message": "❓ Me diga qual é o seu modelo de TV ou dispositivo pra te indicar o app certo pra IPTV com teste grátis."
-        })
+        respostas.append({"message": "🤖 Estou aqui para ajudar com seu teste IPTV. Informe qual aparelho você usa (TV, celular, etc.) ou digite o número do login como *91*, *88* ou *555* se já estiver pronto!"})
 
     return jsonify({"replies": respostas})
 
-# 🔁 Endpoint opcional para chamadas por número (AutoReply)
+
+# 🔁 Endpoint compatível com AutoReply (números como 91, 88, 555...)
 @app.route('/autoreply', methods=['POST'])
 def autoreply():
     data = request.get_json()
@@ -88,16 +39,19 @@ def autoreply():
     respostas = []
 
     if numero == "91":
-        respostas.append({
-            "message": "✅ Login liberado! 🟢\n\n(use aqui a resposta automática que o AutoReply já retorna ao detectar o 91)."
-        })
+        respostas.append({"message": "🔐 Aqui está seu login de teste para TV Samsung:\n\nProvedor: cplayer\nUsuário: 9hkViG\nSenha: Bq38OF\n\n⏳ 3 horas de teste\n💰 Mensalidade: R$ 26,00\n\nSe quiser assinar, digite *100*."})
     elif numero == "88":
-        respostas.append({
-            "message": "🛠️ Instruções especiais para TV antiga liberadas."
-        })
+        respostas.append({"message": "📺 TV antiga detectada! Siga essas instruções:\n\n1. Instale o app *Smart STB*\n2. Configure o DNS manual: 8.8.8.8\n3. Desligue e ligue a TV\n4. Digite *555* para receber o login\n\n⚠️ Se tiver dúvida, envie uma foto da tela!"})
+    elif numero == "555":
+        respostas.append({"message": "🔓 Login de teste liberado para Android, iPhone ou computador!\n\nProvedor: cplayer\nUsuário: 7mjGiR\nSenha: Ar92LQ\n\n⏳ 3 horas de teste\n💳 Planos a partir de R$ 26,00\n\nDigite *100* para assinar!"})
+    elif numero == "100":
+        respostas.append({"message": "🎉 Vamos ativar sua assinatura!\n\n💰 Planos:\n1 mês: R$ 26,00\n2 meses: R$ 47,00\n3 meses: R$ 68,00\n6 meses: R$ 129,00\n1 ano: R$ 185,00\n\n💳 Para pagar:\nPIX (CNPJ): *12.345.678/0001-00*\nCartão: https://pagamento.com/link\n\nAssim que pagar, envie o comprovante aqui ✅"})
     else:
-        respostas.append({
-            "message": "❗Código inválido ou não reconhecido."
-        })
+        respostas.append({"message": "❗Código inválido. Digite 91, 88, 555 ou 100 conforme sua necessidade."})
 
     return jsonify({"replies": respostas})
+
+
+# 🟢 Iniciar servidor no Render
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
