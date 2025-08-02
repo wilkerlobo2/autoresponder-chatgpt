@@ -69,6 +69,7 @@ def responder():
         "Se for Samsung, sempre diga que o app é o Xcloud.\n"
         "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
         "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
+        "Se o cliente perguntar se tem outros aplicativos pra Android, tvbox , projetor, celular diga 9xtream, XCIPTV,  ou Vu iptv player.\n"       
         "Se for iPhone ou computador: Smarters Player Lite.\n"
         "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
         "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
