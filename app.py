@@ -11,7 +11,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 historico_conversas = {}
 usuarios_com_login_enviado = set()
 
-WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
+WEBHOOK_91 = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
 def enviar_mensagem(numero, texto):
@@ -52,8 +52,36 @@ def responder():
     contexto = "\n".join(historico_conversas[numero][-15:])
 
     if any(palavra in mensagem for palavra in ["instalei", "baixei", "pronto", "feito", "já instalei"]) and numero not in usuarios_com_login_enviado:
-        historico = "\n".join(historico_conversas[numero])
-        webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
+        historico = "\n".join(historico_conversas[numero]).lower()
+
+        # Verifica se é uma TV antiga que exige a requisição 88
+        if "tv antiga" in historico or "smart stb" in historico or "não achei" in historico or "não apareceu" in historico or "88" in historico:
+            login = (
+                "Faça o procedimento do vídeo⬇️\n"
+                "https://youtu.be/2ajEjRyKzeU?si=0mbSVYrOkU_2-hO0\n\n"
+                "Coloque a numeração ⬇️\n"
+                "DNS: 64.31.61.14\n\n"
+                "Depois de fazer o procedimento:\n"
+                "1 - Desliga a TV , liga novamente\n"
+                "2 - Instale e abra o Aplicativo *SMART STB*\n\n"
+                "➖️➖️➖️➖️➖️➖️➖️➖️➖️\n"
+                "*SEGUE OS DADOS PARA ACESSAR* ⬇️\n\n"
+                "*Usuario:*    ● 👤{USERNAME}\n"
+                "*Senha:*    ├● 🔐{PASSWORD}\n"
+                "*3 horas de Teste*\n\n"
+                "*MENSALIDADE* ⬇️\n"
+                "R$ 26,00 reais\n\n"
+                "Se você Gostou e quer assinar?\n"
+                "*DIGITE 1️⃣0️⃣0️⃣*"
+            )
+            resposta.append({"message": login})
+            usuarios_com_login_enviado.add(numero)
+            historico_conversas[numero].append("IA: Login 88 enviado")
+            agendar_mensagens(numero)
+            return jsonify({"replies": resposta})
+
+        # TVs modernas (Xcloud): Roku, Samsung nova, LG nova etc.
+        webhook = WEBHOOK_91 if "samsung" in historico or "roku" in historico or "lg" in historico else WEBHOOK_GERAL
 
         try:
             r = requests.get(webhook)
@@ -77,12 +105,13 @@ def responder():
 
         return jsonify({"replies": resposta})
 
-    # IA determina o app com emojis e orienta esperar instalação
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens. "
         "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga a frase:\n\n"
         "'Baixe o app [NOME] 📺⬇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
+        "Sempre prefira o app Xcloud para TVs modernas (Samsung, LG, Roku). TVs Samsung antigas usam o código 88. "
+        "Se o cliente disser que não achou o Xcloud, você pode assumir que é antiga. Evite repetições.\n\n"
         "Histórico da conversa:\n" + contexto + f"\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
