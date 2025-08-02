@@ -3,39 +3,52 @@ import requests
 
 app = Flask(__name__)
 
-# Webhook da Samsung nova (Xcloud)
-WEBHOOK_SAMSUNG_XCLOUD = "https://a.opengl.in/chatbot/check/?k=66b125d558"
+historico = {}
 
-# Frases que indicam que o cliente instalou o app
-gatilhos_instalacao = [
-    "instalei", "já instalei", "instalado", "baixei", "já baixei", "app baixado", "pronto instalei"
-]
+def contem_variacao_instalado(msg):
+    msg = msg.lower()
+    return any(palavra in msg for palavra in ["instalei", "baixei", "já instalei", "já baixei"])
 
-@app.route("/autoreply", methods=["POST"])
-def autoreply():
+def contem_caracteres_parecidos(texto):
+    return any(c in texto for c in ['I', 'l', 'O', '0'])
+
+@app.route("/", methods=["POST"])
+def responder():
     data = request.get_json()
-    mensagem = data.get("query", {}).get("message", "").lower()
-    numero = data.get("query", {}).get("sender", "")
+    numero = data.get("senderName", "")
+    mensagem = data.get("message", "").lower()
 
-    # Verifica se a mensagem contém alguma das frases de instalação
-    if any(g in mensagem for g in gatilhos_instalacao):
+    resposta = []
+
+    if numero not in historico:
+        historico[numero] = {"etapa": "inicio"}
+
+    etapa = historico[numero]["etapa"]
+
+    if etapa == "inicio" and "samsung" in mensagem:
+        resposta.append({
+            "message": "Baixe o app Xcloud 📺⬇️📲 para Samsung!\nMe avise quando instalar para que eu envie o seu login."
+        })
+        historico[numero]["etapa"] = "aguardando_instalacao"
+
+    elif etapa == "aguardando_instalacao" and contem_variacao_instalado(mensagem):
         try:
-            # Envia a palavra "91" como se fosse o cliente
-            r = requests.post(WEBHOOK_SAMSUNG_XCLOUD, json={"message": "91"})
+            r = requests.post("https://a.opengl.in/chatbot/check/?k=66b125d558", json={"message": "91"}, timeout=10)
             if r.status_code == 200:
                 login = r.text.strip()
-                if login:
-                    return jsonify({"replies": [{"message": f"🔐 Pronto! Aqui está seu login de teste:\n\n{login}"}]})
-                else:
-                    return jsonify({"replies": [{"message": "⚠️ Erro: resposta vazia do servidor."}]})
+                texto = f"🔑 Pronto! Aqui está seu login de teste:\n\n{login}"
+                if contem_caracteres_parecidos(login):
+                    texto += "\n\n⚠️ Atenção: verifique letras como I/l ou O/0 que podem confundir. Digite exatamente como está."
+                resposta.append({"message": texto})
+                historico[numero]["etapa"] = "login_enviado"
             else:
-                return jsonify({"replies": [{"message": "❌ Erro ao acessar o servidor. Tente novamente mais tarde."}]})
-        except Exception as e:
-            return jsonify({"replies": [{"message": f"⚠️ Erro técnico ao gerar login: {str(e)}"}]})
+                resposta.append({"message": "⚠️ Erro ao gerar login. Tente novamente."})
+        except Exception:
+            resposta.append({"message": "⚠️ Erro ao gerar login. Tente novamente."})
 
-    # Se não for mensagem de instalação
-    return jsonify({"replies": [{"message": "👍 Me avise quando instalar o app para eu gerar seu login de teste!"}]})
+    else:
+        resposta.append({
+            "message": "Olá! 👋 Me diga qual aparelho você vai usar (ex: TV Samsung, LG, Roku, Android...)?"
+        })
 
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    return jsonify({"replies": resposta})
