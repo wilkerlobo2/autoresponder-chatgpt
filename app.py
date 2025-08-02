@@ -1,88 +1,106 @@
-import os
-import json
-import re
-import requests
 from flask import Flask, request, jsonify
 from openai import OpenAI
+import os
+import threading
+import time
 
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+historico_conversas = {}
+agendados = {}
 
-# Mensagem fixa de boas-vindas
-MENSAGEM_BOAS_VINDAS = (
-    "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-    "Vamos começar seu teste gratuito?\n\n"
-    "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-)
+@app.route("/", methods=["POST"])
+def responder():
+    data = request.get_json()
+    query = data.get("query", {})
+    numero = query.get("sender", "").strip()
+    mensagem = query.get("message", "").strip().lower()
+    resposta = []
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.json
-    if not data or "query" not in data:
-        return jsonify({"replies": [{"message": "Mensagem inválida recebida."}]})
+    if not numero or not mensagem:
+        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    query = data["query"]
-    numero = query.get("sender", "")
-    mensagem = query.get("message", "").strip()
+    # Boas-vindas fixas
+    if numero not in historico_conversas:
+        historico_conversas[numero] = []
+        boas_vindas = (
+            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+            "Vamos começar seu teste gratuito?\n\n"
+            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        )
+        return jsonify({"replies": [{"message": boas_vindas}]})
 
-    # Detecta início da conversa para enviar mensagem de boas-vindas
-    if mensagem.lower() in ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"]:
-        return jsonify({"replies": [{"message": MENSAGEM_BOAS_VINDAS}]})
+    historico_conversas[numero].append(f"Cliente: {mensagem}")
+    contexto = "\n".join(historico_conversas[numero][-15:])
 
-    # Geração da resposta com a IA
+    # Se o cliente disser que já instalou o app
+    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei"]):
+        historico = " ".join(historico_conversas[numero]).lower()
+        if "samsung" in historico:
+            codigo = "91"
+        elif any(d in historico for d in ["tv box", "android", "xtream", "celular", "projetor"]):
+            codigo = "555"
+        elif any(d in historico for d in ["iphone", "ios", "computador", "pc", "notebook", "macbook"]):
+            codigo = "224"
+        elif "philco antiga" in historico:
+            codigo = "98"
+        elif "tv antiga" in historico or "smart stb" in historico:
+            codigo = "88"
+        else:
+            codigo = "91"  # padrão
+
+        texto = f"Digite **{codigo}** aqui na conversa para receber seu login. 😉"
+        historico_conversas[numero].append(f"IA: {texto}")
+        resposta.append({"message": texto})
+
+        # Agendar mensagem de 30 minutos (1.800 segundos)
+        if numero not in agendados:
+            agendados[numero] = True
+            threading.Thread(target=mensagem_agendada, args=(numero,), daemon=True).start()
+
+        return jsonify({"replies": resposta})
+
+    # Prompt principal da IA
+    prompt = (
+        "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
+        "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens.\n\n"
+        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga:\n\n"
+        "'Baixe o app [NOME] 📺⬇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
+        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
+        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
+        "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
+        "Se for iPhone ou computador: Smarters Player Lite.\n"
+        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
+        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
+        "Se for Philco antiga, use o código especial 98.\n\n"
+        "Responda também dúvidas sobre IPTV, login, DNS, letras maiúsculas e minúsculas.\n"
+        f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
+    )
+
     try:
         resposta_ia = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Você é um atendente de suporte IPTV. "
-                        "Seu papel é orientar o cliente de forma clara, direta e natural, com frases curtas e eficientes. "
-                        "Sempre que o cliente disser que já instalou o app, instrua a digitar o número correspondente: \n\n"
-                        "- 91 → TV Samsung nova (Xcloud)\n"
-                        "- 88 → TV antiga (Smart STB + DNS)\n"
-                        "- 555 → Celular, TV Box ou Android TV\n"
-                        "- 224 → Computador ou iPhone\n\n"
-                        "Evite enviar o número diretamente. Deixe o cliente digitar. "
-                        "Se o cliente estiver testando, após cerca de 30 minutos, pergunte se funcionou bem. "
-                        "Após 3h, diga que o teste expirou e apresente os planos com emojis e criatividade. "
-                        "Se o login tiver letras parecidas como I/l ou O/0, avise o cliente para digitar com atenção.\n\n"
-                        "Apenas aja com base no que o cliente disser. Não peça informações desnecessárias. "
-                        "Se ele disser 'já tenho o app Xcloud', apenas diga 'Perfeito! Pode digitar o número 91 para receber seu login de teste!'."
-                    )
-                },
-                {"role": "user", "content": mensagem}
-            ]
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6
         )
-        texto_resposta = resposta_ia.choices[0].message.content.strip()
-        return jsonify({"replies": [{"message": texto_resposta}]})
+        texto = resposta_ia.choices[0].message.content.strip()
+        historico_conversas[numero].append(f"IA: {texto}")
+        resposta.append({"message": texto})
     except Exception as e:
-        return jsonify({"replies": [{"message": "Erro ao gerar resposta com IA."}]})
+        resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
+    return jsonify({"replies": resposta})
 
-# Endpoint opcional para funcionar com números fixos (como 91, 555, 88 etc.)
-@app.route("/autoreply", methods=["POST"])
-def autoreply():
-    data = request.json
-    if not data or "query" not in data:
-        return jsonify({"replies": [{"message": "Mensagem inválida recebida."}]})
-
-    query = data["query"]
-    mensagem = query.get("message", "").strip()
-
-    # Regras fixas para códigos específicos
-    if mensagem == "91":
-        return jsonify({"replies": [{"message": "Aguarde... Enviando seu login de teste para TV Samsung com app Xcloud 📺✅"}]})
-    elif mensagem == "555":
-        return jsonify({"replies": [{"message": "Aguarde... Enviando seu login de teste para Android (celular, TV box, etc.) 🤖✅"}]})
-    elif mensagem == "88":
-        return jsonify({"replies": [{"message": "Enviando login de teste via SMART STB! Instale o app e siga as instruções. 📺🛠️"}]})
-    elif mensagem == "224":
-        return jsonify({"replies": [{"message": "Gerando login de teste para computador ou iPhone! 💻📱"}]})
-    else:
-        return jsonify({"replies": [{"message": "Número inválido. Tente novamente."}]})
-
+# Mensagem programada após 30 minutos
+def mensagem_agendada(numero):
+    time.sleep(1800)
+    mensagem = (
+        "⏱️ Já se passaram 30 minutos desde que você recebeu o teste.\n"
+        "Conseguiu assistir direitinho? Teve algum problema? Estou aqui caso precise de ajuda! 💬"
+    )
+    historico_conversas[numero].append(f"IA: {mensagem}")
+    agendados.pop(numero, None)
+    # Aqui você poderia integrar com envio externo se desejar
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
