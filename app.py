@@ -11,9 +11,11 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 historico_conversas = {}
 usuarios_com_login_enviado = set()
 
-WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
-WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
+# Webhooks correspondem aos códigos 91, 224, etc.
+WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"  # Equivalente ao envio do código 91
+WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"  # Equivalente ao envio do código 224 (e outros padrões)
 
+# Equivalente ao código 88
 LOGIN_88 = (
     "Faça o procedimento do vídeo👇\nhttps://youtu.be/2ajEjRyKzeU?si=0mbSVYrOkU_2-hO0\n\n"
     "Coloque a numeração 👇\nDNS: 64.31.61.14\n\n"
@@ -70,8 +72,9 @@ def responder():
         historico = " ".join(historico_conversas[numero]).lower()
 
         if "smart stb" in historico or "tv antiga" in historico or "não achei o xcloud" in historico:
-            login = LOGIN_88
+            login = LOGIN_88  # Simulação da requisição 88 com instruções completas
         else:
+            # Simulação da requisição 91 (Samsung) ou 224/geral
             webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
             try:
                 r = requests.get(webhook)
@@ -97,13 +100,6 @@ def responder():
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens. "
         "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga a frase:\n\n"
         "'Baixe o app [NOME] 📺👇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
-        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
-        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
-        "Se for Android ou TV Box: Xtream IPTV Player.\n"
-        "Se for iPhone ou computador: Smarters Player Lite.\n"
-        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
-        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
-        "Se for Philco antiga, use o código especial 98.\n\n"
         "Histórico da conversa:\n" + contexto + f"\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
@@ -120,6 +116,35 @@ def responder():
         resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
     return jsonify({"replies": resposta})
+
+@app.route("/autoreply", methods=["POST"])
+def legacy_autoreply():
+    data = request.get_json()
+    pattern = data.get("receiveMessagePattern", [""])[0]
+    resposta = ""
+
+    if pattern == "88":
+        resposta = LOGIN_88
+    elif pattern == "91":
+        try:
+            r = requests.get(WEBHOOK_SAMSUNG)  # Equivalente à requisição feita via código 91
+            if r.status_code == 200:
+                resposta = r.text.strip()
+            else:
+                resposta = "Erro ao gerar login."
+        except Exception as e:
+            resposta = f"Erro: {str(e)}"
+    elif pattern == "224":
+        resposta = (
+            "PlayList Name: CPLAY\n"
+            "*Usuario:* ● 👤{USERNAME}\n"
+            "*Senha:* ├● 🔐{PASSWORD}\n"
+            "URL: http://p8p8.live"
+        )
+    else:
+        resposta = "Código não reconhecido."
+
+    return jsonify({"data": [{"message": resposta}]})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
