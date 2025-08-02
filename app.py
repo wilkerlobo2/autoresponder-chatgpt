@@ -1,16 +1,15 @@
 from flask import Flask, request, jsonify
 from openai import OpenAI
 import os
-import requests
 import threading
 import time
+import requests
 
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 historico_conversas = {}
 usuarios_com_login_enviado = set()
-usuarios_com_app_enviado = {}
 
 WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
@@ -18,10 +17,10 @@ WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 IMAGENS_APPS = {
     "xcloud": "https://telegra.ph/file/0fd4e48b6b2071a5bdfc3.jpg",
     "xtream iptv player": "https://telegra.ph/file/7d3b9e71c7bbcfaf9be86.jpg",
-    "smarters lite": "https://telegra.ph/file/99eb88a01d01d4e3130d1.jpg",
-    "duplecast": "https://telegra.ph/file/6bb209e086733a3dfd143.jpg",
-    "smartone": "https://telegra.ph/file/1cf261e901f6478f43129.jpg",
-    "ott player": "https://telegra.ph/file/27d3e1c6f87f5124eab93.jpg",
+    "duplecast": "https://telegra.ph/file/1c4ad0a4f0a4ed3a02156.jpg",
+    "smartone": "https://telegra.ph/file/9077557d6890d303b5f3c.jpg",
+    "ott player": "https://telegra.ph/file/2f95c81f441a4c31a6d77.jpg",
+    "smarters lite": "https://telegra.ph/file/e15223a3500e63141c915.jpg"
 }
 
 def enviar_mensagem(numero, texto):
@@ -30,97 +29,110 @@ def enviar_mensagem(numero, texto):
         "message": texto
     })
 
-def enviar_imagem(numero, url):
-    requests.post("https://api.autoresponder.chat/send", json={
-        "number": numero,
-        "image": url
-    })
-
 def agendar_mensagens(numero):
-    def lembretes():
-        time.sleep(1800)
-        enviar_mensagem(numero, "⏳ O teste está rolando há 30 min. Deu tudo certo com o app? Precisa de ajuda?")
-        time.sleep(5400)
-        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha curtido! 😄 Veja nossos planos e aproveite 📺🎉")
-    threading.Thread(target=lembretes).start()
+    def enviar():
+        time.sleep(1800)  # 30 minutos
+        enviar_mensagem(numero, "Tudo certo até agora? Me avise se precisar de ajuda. 📺😉")
+        time.sleep(5400)  # mais 1h30
+        enviar_mensagem(numero, "⏰ Seu teste terminou. Vamos ativar seu acesso completo? Veja os planos abaixo 👇\n\n"
+                                "📆 1 mês – R$ 26\n📆 2 meses – R$ 47\n📆 3 meses – R$ 68\n📆 6 meses – R$ 129\n📆 1 ano – R$ 185\n\n"
+                                "Formas de pagamento:\n🔹 PIX (CNPJ): 12345678000199\n🔹 Cartão: https://pagamento.exemplo.com")
+    threading.Thread(target=enviar).start()
 
-def contem_caracteres_parecidos(texto):
-    return any(c in texto for c in ['I', 'l', 'O', '0'])
+def gerar_login(numero, dispositivo):
+    if numero in usuarios_com_login_enviado:
+        return
+
+    webhook = WEBHOOK_SAMSUNG if "samsung" in dispositivo.lower() else WEBHOOK_GERAL
+
+    try:
+        requests.get(webhook)
+        usuarios_com_login_enviado.add(numero)
+        enviar_mensagem(numero, "🔓 Login gerado com sucesso! Digite o login no app com atenção às letras maiúsculas e minúsculas. "
+                                "Cuidado com caracteres parecidos como O e 0, I e l. 👍")
+        agendar_mensagens(numero)
+    except Exception as e:
+        enviar_mensagem(numero, f"⚠️ Erro ao gerar login: {str(e)}")
 
 @app.route("/", methods=["POST"])
 def responder():
-    data = request.get_json()
+    data = request.json
     query = data.get("query", {})
-    numero = query.get("sender", "").strip()
-    mensagem = query.get("message", "").strip().lower()
+    numero = query.get("from", "")
+    mensagem = query.get("message", "").lower()
+
     resposta = []
 
-    if not numero or not mensagem:
-        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
-
     if numero not in historico_conversas:
-        historico_conversas[numero] = []
-        resposta.append({"message": "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n\nVamos começar seu teste gratuito?\n\nMe diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."})
-        historico_conversas[numero].append(f"Cliente: {mensagem}")
-        return jsonify({"replies": resposta})
-
-    historico_conversas[numero].append(f"Cliente: {mensagem}")
-    contexto = "\n".join(historico_conversas[numero][-15:])
-
-    if any(palavra in mensagem for palavra in ["instalei", "baixei", "já tenho", "já está instalado"]) and numero not in usuarios_com_login_enviado:
-        historico = "\n".join(historico_conversas[numero])
-        if "samsung" in historico:
-            webhook = WEBHOOK_SAMSUNG
+        historico_conversas[numero] = {"dispositivo": "", "login_enviado": False}
+        resposta.append({
+            "message": "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+                       "Vamos começar seu teste gratuito?\n\n"
+                       "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        })
+    elif any(palavra in mensagem for palavra in ["samsung", "tv samsung"]):
+        historico_conversas[numero]["dispositivo"] = "Samsung"
+        resposta.append({
+            "message": "Olá! Para assistir IPTV na sua Samsung, baixe o app *Xcloud* ➡️📱. "
+                       "Assim que instalar, me avise para te enviar o login. 📺👍"
+        })
+        resposta.append({
+            "message": f"[Imagem do app Xcloud]\n{IMAGENS_APPS['xcloud']}"
+        })
+    elif any(palavra in mensagem for palavra in ["android", "tv box", "celular", "projetor"]):
+        historico_conversas[numero]["dispositivo"] = "Android"
+        resposta.append({
+            "message": "Para seu dispositivo Android, use o app *Xtream IPTV Player* ▶️📱. "
+                       "Assim que instalar, me avise dizendo 'instalei' para te enviar o login. 😄"
+        })
+        resposta.append({
+            "message": f"[Imagem do app Xtream IPTV Player]\n{IMAGENS_APPS['xtream iptv player']}"
+        })
+    elif any(palavra in mensagem for palavra in ["lg"]):
+        historico_conversas[numero]["dispositivo"] = "LG"
+        resposta.append({
+            "message": "Na TV LG, baixe o app *Xcloud* 📺✅. Caso não funcione, me avise que te passo alternativas. 😉"
+        })
+        resposta.append({
+            "message": f"[Imagem do app Xcloud]\n{IMAGENS_APPS['xcloud']}"
+        })
+    elif any(palavra in mensagem for palavra in ["roku"]):
+        historico_conversas[numero]["dispositivo"] = "Roku"
+        resposta.append({
+            "message": "Para Roku, baixe o app *Xcloud* 🟩⬛. Me avise quando instalar. 📲"
+        })
+        resposta.append({
+            "message": f"[Imagem do app Xcloud]\n{IMAGENS_APPS['xcloud']}"
+        })
+    elif any(palavra in mensagem for palavra in ["philco", "phillco"]):
+        historico_conversas[numero]["dispositivo"] = "Philco"
+        resposta.append({
+            "message": "Na TV Philco, use o app *Duplecast* (com QR Code) ou *OTT Player*. Me diga qual escolheu! 📡📺"
+        })
+        resposta.append({
+            "message": f"[Imagem Duplecast]\n{IMAGENS_APPS['duplecast']}"
+        })
+        resposta.append({
+            "message": f"[Imagem OTT Player]\n{IMAGENS_APPS['ott player']}"
+        })
+    elif any(palavra in mensagem for palavra in ["smartone", "smart one"]):
+        resposta.append({
+            "message": "Ótimo! Me envie o MAC da sua TV para ativar. 🔠📺"
+        })
+        resposta.append({
+            "message": f"[Imagem do app SmartOne]\n{IMAGENS_APPS['smartone']}"
+        })
+    elif any(palavra in mensagem for palavra in ["instalei", "baixei", "já instalei", "instalado"]):
+        dispositivo = historico_conversas[numero].get("dispositivo", "")
+        if dispositivo:
+            resposta.append({"message": "Perfeito! Gerando seu acesso... 🔄"})
+            gerar_login(numero, dispositivo)
         else:
-            webhook = WEBHOOK_GERAL
-
-        try:
-            r = requests.get(webhook)
-            if r.status_code == 200:
-                login = r.text.strip()
-                aviso = "\n\n⚠️ Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com atenção!"
-                resposta.append({"message": f"🔓 Pronto! Aqui está seu login de teste:\n\n{login}" + (aviso if contem_caracteres_parecidos(login) else "")})
-                usuarios_com_login_enviado.add(numero)
-                agendar_mensagens(numero)
-                historico_conversas[numero].append("IA: Login enviado")
-            else:
-                resposta.append({"message": "⚠️ Erro ao gerar login. Tente novamente em instantes."})
-        except Exception as e:
-            resposta.append({"message": f"⚠️ Erro na geração do login: {str(e)}"})
-        return jsonify({"replies": resposta})
-
-    prompt = (
-        "Você está atendendo um cliente via WhatsApp sobre IPTV.\n"
-        "Seja direto, breve e com linguagem simples (estilo linha de produção).\n"
-        "Se o cliente disser o nome do dispositivo (Samsung, LG, Android, Roku, iPhone etc), diga claramente qual app usar.\n"
-        "Sempre diga com firmeza: 'Baixe o app Xcloud 📲', e não 'recomendo'.\n"
-        "Inclua o nome do app e envie a imagem correspondente.\n"
-        "Só envie o login depois que o cliente disser 'instalei', 'baixei', etc.\n"
-        "Não repita perguntas. Não pergunte o modelo se já souber pela conversa.\n\n"
-        f"Histórico:\n{contexto}\n\n"
-        f"Mensagem mais recente: '{mensagem}'\n\n"
-        "Responda de forma clara:"
-    )
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
-        )
-        texto = response.choices[0].message.content.strip()
-        historico_conversas[numero].append(f"IA: {texto}")
-        resposta.append({"message": texto})
-
-        for nome_app, url_imagem in IMAGENS_APPS.items():
-            if nome_app in texto.lower():
-                enviar_imagem(numero, url_imagem)
-                break
-
-    except Exception as e:
-        resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
+            resposta.append({"message": "Qual dispositivo você está usando mesmo? 🤔"})
+    else:
+        resposta.append({"message": "Certo! Só preciso saber o modelo do seu aparelho (TV, celular, etc). Me diga, por favor. 📱📺"})
 
     return jsonify({"replies": resposta})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(debug=True)
