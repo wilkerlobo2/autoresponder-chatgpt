@@ -1,128 +1,125 @@
 from flask import Flask, request, jsonify
-import requests
+from openai import OpenAI
+import os
+import threading
 import time
+import requests
 
 app = Flask(__name__)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Webhooks para geração de login
+historico_conversas = {}
+usuarios_com_login_enviado = set()
+
 WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
-WEBHOOK_CODIGO_88 = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
 
-# Mensagem de boas-vindas
-MENSAGEM_INICIAL = (
-    "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n\n"
-    "Vamos começar seu teste gratuito?\n\n"
-    "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+LOGIN_88 = (
+    "Faça o procedimento do vídeo👇\nhttps://youtu.be/2ajEjRyKzeU?si=0mbSVYrOkU_2-hO0\n\n"
+    "Coloque a numeração 👇\nDNS: 64.31.61.14\n\n"
+    "Depois de fazer o procedimento:\n"
+    "1 - Desliga a TV , liga novamente\n"
+    "2 - Instale e abra o Aplicativo *SMART STB*\n\n"
+    "➖️➖️➖️➖️➖️➖️➖️➖️➖️\n"
+    "*SEGUE OS DADOS PARA ACESSAR* 👇\n\n"
+    "*Usuario:*    ● 👤{USERNAME}\n"
+    "*Senha:*    ├● 🔐{PASSWORD}\n"
+    "*3 horas de Teste*\n\n"
+    "*MENSALIDADE* 📇\nR$ 26,00 reais\n\n"
+    "Se você Gostou e quer assinar?\n*DIGITE 🔑1️⃣0️⃣0️⃣*"
 )
 
-@app.route("/", methods=["GET"])
-def home():
-    return "✅ Webhook ativo e rodando!"
+def enviar_mensagem(numero, texto):
+    requests.post("https://api.autoresponder.chat/send", json={"number": numero, "message": texto})
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
+def agendar_mensagens(numero):
+    def lembretes():
+        time.sleep(1800)
+        enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
+        time.sleep(5400)
+        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
+    threading.Thread(target=lembretes).start()
+
+def contem_caracteres_parecidos(texto):
+    return any(c in texto for c in ['I', 'l', 'O', '0'])
+
+@app.route("/", methods=["POST"])
+def responder():
     data = request.get_json()
+    query = data.get("query", {})
+    numero = query.get("sender", "").strip()
+    mensagem = query.get("message", "").strip().lower()
+    resposta = []
 
-    # Verifica se a estrutura da mensagem está correta
-    if not data or "query" not in data:
-        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]}), 400
+    if not numero or not mensagem:
+        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    query = data["query"]
-    message = query.get("message", "").strip()
-    sender = query.get("from", "")
-    nome = query.get("name", "")
+    if numero not in historico_conversas:
+        historico_conversas[numero] = []
+        boas_vindas = (
+            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+            "Vamos começar seu teste gratuito?\n\n"
+            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+        )
+        return jsonify({"replies": [{"message": boas_vindas}]})
 
-    if not message:
-        return jsonify({"replies": [{"message": "⚠️ Mensagem vazia recebida."}]}), 200
+    historico_conversas[numero].append(f"Cliente: {mensagem}")
+    contexto = "\n".join(historico_conversas[numero][-15:])
 
-    # Resposta inicial se for saudação
-    saudacoes = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"]
-    if message.lower() in saudacoes:
-        return jsonify({"replies": [{"message": MENSAGEM_INICIAL}]}), 200
+    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "ja instalei", "já instalei"]):
+        historico = " ".join(historico_conversas[numero]).lower()
 
-    # Cliente digita número 91
-    if message == "91":
-        try:
-            r = requests.post(WEBHOOK_SAMSUNG, timeout=10)
-            if r.status_code == 200:
-                resposta = r.text.strip()
-                if any(char in resposta for char in "IlO0"):
-                    resposta += "\n\n⚠️ Atenção aos caracteres parecidos: 'I' maiúsculo, 'l' minúsculo, 'O' e '0'. Digite com cuidado!"
-                return jsonify({"replies": [{"message": resposta}]}), 200
-            else:
-                return jsonify({"replies": [{"message": "❌ Erro ao gerar login (código 91). Tente novamente."}]}), 200
-        except Exception as e:
-            return jsonify({"replies": [{"message": f"❌ Erro ao gerar login: {str(e)}"}]}), 200
+        if "smart stb" in historico or "tv antiga" in historico or "não achei o xcloud" in historico:
+            login = LOGIN_88
+        else:
+            webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
+            try:
+                r = requests.get(webhook)
+                if r.status_code == 200 and "USERNAME" in r.text:
+                    login = r.text.strip()
+                else:
+                    return jsonify({"replies": [{"message": "⚠️ Erro ao gerar login. Tente novamente."}]})
+            except Exception as e:
+                return jsonify({"replies": [{"message": f"⚠️ Erro na geração do login: {str(e)}"}]})
 
-    # Cliente digita número 88 (TV antiga, STB, etc.)
-    if message == "88":
-        try:
-            r = requests.post(WEBHOOK_CODIGO_88, timeout=10)
-            if r.status_code == 200:
-                resposta = r.text.strip()
-                resposta += (
-                    "\n\n📹 Veja o tutorial de instalação: https://youtu.be/Xm5cXvRGk2g\n"
-                    "🌐 DNS: 1.1.1.1\n"
-                    "🔁 Após instalar, desligue e ligue a TV.\n"
-                    "💡 App: SMART STB\n"
-                    "💳 Mensalidade: R$ 26,00\n\n"
-                    "Se quiser assinar, digite *100* ✅"
-                )
-                return jsonify({"replies": [{"message": resposta}]}), 200
-            else:
-                return jsonify({"replies": [{"message": "❌ Erro ao gerar login (código 88)."}]}), 200
-        except Exception as e:
-            return jsonify({"replies": [{"message": f"❌ Erro ao gerar login: {str(e)}"}]}), 200
+        texto = f"🔑 Pronto! Aqui está seu login de teste:\n\n{login}"
+        if contem_caracteres_parecidos(login):
+            texto += "\n\n🚡 Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com cuidado!"
 
-    # Cliente digita número 555
-    if message == "555":
-        try:
-            r = requests.post(WEBHOOK_GERAL, timeout=10)
-            if r.status_code == 200:
-                resposta = r.text.strip()
-                if any(char in resposta for char in "IlO0"):
-                    resposta += "\n\n⚠️ Atenção aos caracteres parecidos: 'I', 'l', 'O', '0'. Digite com cuidado!"
-                return jsonify({"replies": [{"message": resposta}]}), 200
-            else:
-                return jsonify({"replies": [{"message": "❌ Erro ao gerar login (código 555)."}]}), 200
-        except Exception as e:
-            return jsonify({"replies": [{"message": f"❌ Erro ao gerar login: {str(e)}"}]}), 200
+        resposta.append({"message": texto})
+        usuarios_com_login_enviado.add(numero)
+        historico_conversas[numero].append("IA: Login enviado")
+        agendar_mensagens(numero)
+        return jsonify({"replies": resposta})
 
-    # Resposta padrão
-    resposta_padrao = (
-        "🤖 Estou aqui para ajudar com seu teste IPTV.\n"
-        "Informe qual aparelho você usa (TV, celular, etc.) ou digite o número do login como *91*, *88* ou *555* se já estiver pronto!"
+    prompt = (
+        "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
+        "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens. "
+        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga a frase:\n\n"
+        "'Baixe o app [NOME] 📺👇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
+        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
+        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
+        "Se for Android ou TV Box: Xtream IPTV Player.\n"
+        "Se for iPhone ou computador: Smarters Player Lite.\n"
+        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
+        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
+        "Se for Philco antiga, use o código especial 98.\n\n"
+        "Histórico da conversa:\n" + contexto + f"\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
-    return jsonify({"replies": [{"message": resposta_padrao}]}), 200
 
-# Para compatibilidade com chamadas diretas por número (ex: /autoreply?message=91)
-@app.route("/autoreply", methods=["POST", "GET"])
-def autoreply():
-    message = request.args.get("message", "").strip()
+    try:
+        resposta_ia = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6
+        )
+        texto = resposta_ia.choices[0].message.content.strip()
+        historico_conversas[numero].append(f"IA: {texto}")
+        resposta.append({"message": texto})
+    except Exception as e:
+        resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
-    if message == "91":
-        try:
-            r = requests.post(WEBHOOK_SAMSUNG, timeout=10)
-            return r.text, 200
-        except:
-            return "Erro ao gerar login", 200
-
-    if message == "88":
-        try:
-            r = requests.post(WEBHOOK_CODIGO_88, timeout=10)
-            return r.text, 200
-        except:
-            return "Erro ao gerar login", 200
-
-    if message == "555":
-        try:
-            r = requests.post(WEBHOOK_GERAL, timeout=10)
-            return r.text, 200
-        except:
-            return "Erro ao gerar login", 200
-
-    return "Mensagem inválida", 200
+    return jsonify({"replies": resposta})
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=10000)
