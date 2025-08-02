@@ -15,23 +15,27 @@ def responder():
 
     if message in ["instalei", "baixei", "já instalei", "ja instalei", "instalei o app"]:
         try:
+            # Enviar "91" para a webhook, simulando o que o AutoReply faria
             response = requests.post(WEBHOOK_91, json={"query": {"from": sender, "message": "91"}})
             conteudo = response.json()
 
-            # Se for lista de strings, converte para o formato padrão
+            # Verifica se a resposta da webhook é uma lista de strings
             if isinstance(conteudo, list):
-                return jsonify({
-                    "replies": [{"message": msg} for msg in conteudo]
-                })
+                replies = [{"message": msg} for msg in conteudo]
+                return jsonify({"replies": replies})
 
-            # Se já vier com chave replies, retorna direto
+            # Caso a resposta seja um dict com 'replies', repassa direto
             if isinstance(conteudo, dict) and "replies" in conteudo:
                 return jsonify(conteudo)
 
-            # Caso não tenha replies
+            # Se a resposta for apenas uma string simples
+            if isinstance(conteudo, str):
+                return jsonify({"replies": [{"message": conteudo}]})
+
+            # Caso nenhuma das opções acima funcione
             return jsonify({
                 "replies": [{
-                    "message": "⚠️ Erro: webhook respondeu em formato inesperado."
+                    "message": "⚠️ Erro: formato de resposta inesperado da webhook."
                 }]
             })
 
