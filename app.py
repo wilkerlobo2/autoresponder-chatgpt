@@ -1,128 +1,103 @@
-import os
-import requests
 from flask import Flask, request, jsonify
 from openai import OpenAI
+import os
+import threading
+import time
+import requests
 
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Links das imagens dos apps
-IMAGENS_APPS = {
-    "xcloud": "https://telegra.ph/file/0fd4e48b6b2071a5bdfc3.jpg",
-    "xtream iptv player": "https://telegra.ph/file/7d3b9e71c7bbcfaf9be86.jpg",
-    "smartone": "https://telegra.ph/file/9edcc4d6b282ad5b36d64.jpg",
-    "duplecast": "https://telegra.ph/file/b0ad40eb0fa0f4eb2dc91.jpg",
-    "ott player": "https://telegra.ph/file/cf3c5e2d8a30fbb2f5f40.jpg",
-    "smarters player lite": "https://telegra.ph/file/203eb88a26a8d35d0b246.jpg"
-}
-
-# Webhooks de geração de teste
-WEBHOOKS = {
-    "samsung": "https://a.opengl.in/chatbot/check/?k=66b125d558",
-    "android": "https://painelacesso1.com/chatbot/check/?k=76be279cb5",
-    "iphone": "https://painelacesso1.com/chatbot/check/?k=76be279cb5",
-    "computador": "https://painelacesso1.com/chatbot/check/?k=76be279cb5",
-    "roku": "https://painelacesso1.com/chatbot/check/?k=76be279cb5",
-    "lg": "https://painelacesso1.com/chatbot/check/?k=76be279cb5",
-    "philco": "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
-}
-
-# Histórico de conversas
 historico_conversas = {}
-status_clientes = {}
+usuarios_com_login_enviado = set()
 
-def enviar_imagem(numero, url):
-    requests.post("https://api.autoresponder.chat/send-image", json={
-        "number": numero,
-        "url": url
-    })
+WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
+WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
+
+def enviar_mensagem(numero, texto):
+    payload = {"number": numero, "message": texto}
+    requests.post("https://api.autoresponder.chat/send", json=payload)
+
+def agendar_mensagens(numero):
+    def lembretes():
+        time.sleep(1800)
+        enviar_mensagem(numero, "⏳ O teste já está rolando há 30 minutos. Deu tudo certo com o app? 😄")
+        time.sleep(5400)
+        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 💸📺")
+    threading.Thread(target=lembretes).start()
+
+def contem_caracteres_parecidos(texto):
+    return any(c in texto for c in ['I', 'l', 'O', '0'])
 
 @app.route("/", methods=["POST"])
-def receber_mensagem():
+def responder():
     data = request.get_json()
     query = data.get("query", {})
-    numero = query.get("sender", "")
+    numero = query.get("sender", "").strip()
     mensagem = query.get("message", "").strip().lower()
     resposta = []
 
+    if not numero or not mensagem:
+        return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
+
     if numero not in historico_conversas:
         historico_conversas[numero] = []
-        status_clientes[numero] = {"aguardando_instalacao": None}
-        texto = (
+        boas_vindas = (
             "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
             "Vamos começar seu teste gratuito?\n\n"
             "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
         )
-        resposta.append({"message": texto})
+        return jsonify({"replies": [{"message": boas_vindas}]})
+
+    historico_conversas[numero].append(f"Cliente: {mensagem}")
+    contexto = "\n".join(historico_conversas[numero][-15:])
+
+    if any(x in mensagem for x in ["instalei", "baixei", "pronto", "feito"]) and numero not in usuarios_com_login_enviado:
+        historico = "\n".join(historico_conversas[numero])
+        webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
+
+        try:
+            r = requests.get(webhook)
+            if r.status_code == 200:
+                login = r.text.strip()
+                aviso = "\n\n⚠️ Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com cuidado!"
+                resposta.append({"message": f"🔓 Pronto! Aqui está seu login de teste:\n\n{login}" + (aviso if contem_caracteres_parecidos(login) else "")})
+                usuarios_com_login_enviado.add(numero)
+                agendar_mensagens(numero)
+                historico_conversas[numero].append("IA: Login enviado")
+            else:
+                resposta.append({"message": "⚠️ Erro ao gerar login. Tente novamente."})
+        except Exception as e:
+            resposta.append({"message": f"⚠️ Erro na geração do login: {str(e)}"})
         return jsonify({"replies": resposta})
 
-    historico_conversas[numero].append(f"Usuário: {mensagem}")
-
-    if status_clientes[numero]["aguardando_instalacao"]:
-        if any(palavra in mensagem for palavra in ["instalei", "baixei", "já tenho", "já está", "já usei"]):
-            tipo = status_clientes[numero]["aguardando_instalacao"]
-            url = WEBHOOKS.get(tipo)
-            if url:
-                try:
-                    requests.get(url)
-                    resposta.append({"message": "✅ Prontinho! Teste enviado. Digite o login no app e aproveite! 😉"})
-                except Exception:
-                    resposta.append({"message": "⚠️ Ocorreu um erro ao gerar seu teste. Tente novamente."})
-            status_clientes[numero]["aguardando_instalacao"] = None
-            return jsonify({"replies": resposta})
+    prompt = (
+        "Você é um atendente de IPTV via WhatsApp. Atenda de forma direta, objetiva e simpática como uma linha de produção. "
+        "Sempre que o cliente mencionar o aparelho, diga com certeza qual app ele deve baixar (não use 'recomendo', use 'baixe o app ...'). "
+        "Use emojis criativos. NÃO envie imagens ou links. Aguarde o cliente confirmar que instalou para só então dizer que irá gerar o login.\n\n"
+        "Apps por dispositivo:\n"
+        "- Samsung, LG, Roku, Philco nova → Xcloud 📺⬇️📲\n"
+        "- Android, celular, TV Box → Xtream IPTV Player 🤖📲\n"
+        "- iPhone ou computador → Smarters Player Lite 🍎💻\n"
+        "- LG (caso Xcloud não funcione) → Duplecast 🔁 ou SmartOne 🟩 (se for SmartOne, peça o MAC)\n"
+        "- AOC ou Philips → OTT Player 🧩 ou Duplecast 🔁 (peça QR code)\n"
+        "- Philco antiga → usar app especial com código 98 🔢\n\n"
+        f"Histórico:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResposta:"
+    )
 
     try:
-        prompt = f"""Você é um atendente de suporte IPTV. Responda com simplicidade e objetividade.
-O cliente enviou: {mensagem}
-
-Com base na mensagem, diga qual dispositivo ele quer usar. Responda da seguinte forma:
-- Se mencionar Samsung, diga: "Olá! Para assistir IPTV na sua Samsung, baixe o app *Xcloud* ➡️📲. Assim que instalar, me avise para te enviar o login. 📺👍"
-- Se for LG, diga: "Para assistir IPTV na sua LG, baixe o app *Xcloud* ➡️📲. Depois me avise dizendo 'instalei' que envio seu login. 😉"
-- Se for Roku, diga: "Use o app *Xcloud* ➡️📲. Após instalar, diga 'instalei' que te envio o login. 🔓📺"
-- Se for Android (celular, TV Box, projetor), diga: "Instale o app *Xtream IPTV Player* 📲 e me avise dizendo 'instalei' que envio seu login. 😄"
-- Se for iPhone ou iPad, diga: "Baixe o *Smarters Player Lite* na App Store 📲. Após instalar, me avise que envio seu login."
-- Se for Computador ou Notebook, diga: "Use o app *Xtream IPTV Player* (Windows). Me avise quando instalar para gerar o login. 💻"
-- Se for Philco, diga: "Sua TV Philco pode usar o app *OTT Player* ou *Duplecast*. Escolha um e me avise após instalar! 😉"
-- Sempre que possível, use emojis e linguagem simples.
-
-Se não entender o dispositivo, peça que o cliente diga qual aparelho está usando (TV LG, Samsung, celular, etc).
-"""
-
-        response = client.chat.completions.create(
+        resposta_ia = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
+            temperature=0.7
         )
-        texto = response.choices[0].message.content.strip()
+        texto = resposta_ia.choices[0].message.content.strip()
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
-
-        # Identificar qual app foi citado e salvar tipo
-        for nome_app, url_imagem in IMAGENS_APPS.items():
-            if nome_app in texto.lower():
-                enviar_imagem(numero, url_imagem)
-                if "samsung" in mensagem:
-                    status_clientes[numero]["aguardando_instalacao"] = "samsung"
-                elif "android" in mensagem or "xtream" in texto.lower():
-                    status_clientes[numero]["aguardando_instalacao"] = "android"
-                elif "iphone" in mensagem or "ios" in mensagem:
-                    status_clientes[numero]["aguardando_instalacao"] = "iphone"
-                elif "computador" in mensagem or "notebook" in mensagem:
-                    status_clientes[numero]["aguardando_instalacao"] = "computador"
-                elif "roku" in mensagem:
-                    status_clientes[numero]["aguardando_instalacao"] = "roku"
-                elif "philco" in mensagem:
-                    status_clientes[numero]["aguardando_instalacao"] = "philco"
-                elif "lg" in mensagem:
-                    status_clientes[numero]["aguardando_instalacao"] = "lg"
-                break
-
     except Exception as e:
         resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
     return jsonify({"replies": resposta})
 
-# ✅ Final correto para funcionar no Render
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
