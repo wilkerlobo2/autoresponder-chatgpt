@@ -3,50 +3,60 @@ import requests
 
 app = Flask(__name__)
 
-@app.route("/", methods=["POST"])
-def responder():
-    data = request.get_json()
-    user_message = data.get("query", {}).get("message", "").lower()
-    sender_number = data.get("query", {}).get("sender", "")
+# Webhook específica para Samsung (requisição 91)
+WEBHOOK_URL = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 
-    # Verifica se o cliente informou que instalou o app
-    gatilhos = ["instalei", "baixei", "já instalei", "já baixei"]
-    if any(g in user_message for g in gatilhos):
-        # Simula o envio de "91" como se fosse o cliente
+@app.route("/", methods=["POST"])
+def index():
+    data = request.get_json()
+    
+    message = data.get("message", "").lower()
+    sender = data.get("sender", "")
+
+    # Apenas responde se o cliente disser "instalei"
+    if "instalei" in message:
+        # Simula o envio da mensagem "91" como se fosse AutoReply
         payload = {
             "query": {
                 "message": "91",
                 "from": "cliente",
-                "sender": sender_number
+                "sender": sender
             }
         }
+
         try:
-            resposta = requests.post(
-                "https://a.opengl.in/chatbot/check/?k=66b125d558",
-                json=payload,
-                timeout=10
-            )
+            response = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+            result = response.json()
 
-            if resposta.status_code == 200:
-                resposta_json = resposta.json()
-                mensagens = resposta_json.get("replies", [])  # Assumindo esse formato
-                if isinstance(mensagens, list):
-                    return jsonify({"replies": mensagens})
-                else:
-                    return jsonify({"replies": [{"message": "❗Erro: resposta inesperada do servidor de login."}]})
-            else:
-                return jsonify({"replies": [{"message": "⚠️ Erro ao gerar login. Tente novamente mais tarde."}]})
+            # Extrai o conteúdo retornado da webhook
+            replies = result.get("replies", [])
+            if not replies or "message" not in replies[0]:
+                raise ValueError("Login não retornado corretamente.")
+
+            login = replies[0]["message"]
+
+            # Mensagem final para o cliente
+            final_message = f"""🔐 Pronto! Aqui está seu login de teste:
+
+{login}
+
+⚠️ Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com cuidado!
+"""
+            return jsonify({"replies": [{"message": final_message}]})
+
         except Exception as e:
-            return jsonify({"replies": [{"message": f"⚠️ Erro técnico: {str(e)}"}]})
+            return jsonify({"replies": [{"message": f"⚠️ Erro ao gerar login: {str(e)}"}]})
 
-    # Se não for um gatilho válido
-    return jsonify({"replies": [{"message": "❗Envie 'instalei' quando terminar de baixar o app para gerar seu login."}]})
+    # Caso a mensagem não seja "instalei"
+    return jsonify({"replies": [{"message": "❗ Envie 'instalei' quando terminar de baixar o app para gerar seu login."}]})
 
 
-# Rota extra para compatibilidade com números como 91, 88 etc., se quiser manter.
 @app.route("/autoreply", methods=["POST"])
 def autoreply():
-    return responder()
+    # Este endpoint é para compatibilidade futura com requisições diretas por número, como 91
+    data = request.get_json()
+    return jsonify({"replies": [{"message": "🔧 Endpoint /autoreply em modo de teste."}]})
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run()
