@@ -1,34 +1,53 @@
 from flask import Flask, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
 WEBHOOK_91 = "https://a.opengl.in/chatbot/check/?k=66b125d558"
 
-@app.route("/", methods=["GET", "POST"])
-def testar_webhook_91():
-    # Simula número fictício para teste
-    teste_sender = "+5599999999999"
-    payload = {
-        "query": {
-            "from": teste_sender,
-            "message": "91"
-        }
-    }
+@app.route("/", methods=["POST"])
+def responder():
+    data = request.json
+    query = data.get("query", {})
+    sender = query.get("from", "")
+    message = query.get("message", "").strip().lower()
 
-    try:
-        resposta = requests.post(WEBHOOK_91, json=payload)
-        conteudo = resposta.json()
+    if message in ["instalei", "baixei", "já instalei", "ja instalei", "instalei o app"]:
+        try:
+            response = requests.post(WEBHOOK_91, json={"query": {"from": sender, "message": "91"}})
+            conteudo = response.json()
 
-        print("🔍 RESPOSTA DA WEBHOOK 91:")
-        print(conteudo)
+            # Se for lista de strings, converte para o formato padrão
+            if isinstance(conteudo, list):
+                return jsonify({
+                    "replies": [{"message": msg} for msg in conteudo]
+                })
 
-        return jsonify({"status": "ok", "mensagem": "Resposta da webhook 91 registrada no log."})
+            # Se já vier com chave replies, retorna direto
+            if isinstance(conteudo, dict) and "replies" in conteudo:
+                return jsonify(conteudo)
 
-    except Exception as e:
-        print("❌ ERRO na requisição webhook:")
-        print(str(e))
-        return jsonify({"status": "erro", "mensagem": str(e)}), 500
+            # Caso não tenha replies
+            return jsonify({
+                "replies": [{
+                    "message": "⚠️ Erro: webhook respondeu em formato inesperado."
+                }]
+            })
+
+        except Exception as e:
+            return jsonify({
+                "replies": [{
+                    "message": f"❌ Erro ao acessar a webhook: {str(e)}"
+                }]
+            })
+
+    return jsonify({
+        "replies": [{
+            "message": "📲 Envie *instalei* quando terminar de baixar o app para liberar seu login de teste."
+        }]
+    })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
