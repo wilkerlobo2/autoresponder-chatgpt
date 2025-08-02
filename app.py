@@ -1,47 +1,11 @@
 from flask import Flask, request, jsonify
 from openai import OpenAI
 import os
-import threading
-import time
-import requests
 
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 historico_conversas = {}
-usuarios_com_login_enviado = set()
-
-WEBHOOK_SAMSUNG = "https://a.opengl.in/chatbot/check/?k=66b125d558"
-WEBHOOK_GERAL = "https://painelacesso1.com/chatbot/check/?k=76be279cb5"
-
-LOGIN_88 = (
-    "Faça o procedimento do vídeo👇\nhttps://youtu.be/2ajEjRyKzeU?si=0mbSVYrOkU_2-hO0\n\n"
-    "Coloque a numeração 👇\nDNS: 64.31.61.14\n\n"
-    "Depois de fazer o procedimento:\n"
-    "1 - Desliga a TV , liga novamente\n"
-    "2 - Instale e abra o Aplicativo *SMART STB*\n\n"
-    "➖️➖️➖️➖️➖️➖️➖️➖️➖️\n"
-    "*SEGUE OS DADOS PARA ACESSAR* 👇\n\n"
-    "*Usuario:*    ● 👤{USERNAME}\n"
-    "*Senha:*    ├● 🔐{PASSWORD}\n"
-    "*3 horas de Teste*\n\n"
-    "*MENSALIDADE* 📇\nR$ 26,00 reais\n\n"
-    "Se você Gostou e quer assinar?\n*DIGITE 🔑1️⃣0️⃣0️⃣*"
-)
-
-def enviar_mensagem(numero, texto):
-    requests.post("https://api.autoresponder.chat/send", json={"number": numero, "message": texto})
-
-def agendar_mensagens(numero):
-    def lembretes():
-        time.sleep(1800)
-        enviar_mensagem(numero, "⏳ Olá! O teste já está rolando há 30 min. Deu tudo certo com o app?")
-        time.sleep(5400)
-        enviar_mensagem(numero, "⌛ O teste terminou! Espero que tenha gostado. Temos planos a partir de R$26,00. Quer ver as opções? 😄")
-    threading.Thread(target=lembretes).start()
-
-def contem_caracteres_parecidos(texto):
-    return any(c in texto for c in ['I', 'l', 'O', '0'])
 
 @app.route("/", methods=["POST"])
 def responder():
@@ -66,44 +30,17 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
-    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "ja instalei", "já instalei"]):
-        historico = " ".join(historico_conversas[numero]).lower()
-
-        if "smart stb" in historico or "tv antiga" in historico or "não achei o xcloud" in historico:
-            login = LOGIN_88
-        else:
-            webhook = WEBHOOK_SAMSUNG if "samsung" in historico else WEBHOOK_GERAL
-            try:
-                r = requests.get(webhook)
-                if r.status_code == 200 and "USERNAME" in r.text:
-                    login = r.text.strip()
-                else:
-                    return jsonify({"replies": [{"message": "⚠️ Erro ao gerar login. Tente novamente."}]})
-            except Exception as e:
-                return jsonify({"replies": [{"message": f"⚠️ Erro na geração do login: {str(e)}"}]})
-
-        texto = f"🔑 Pronto! Aqui está seu login de teste:\n\n{login}"
-        if contem_caracteres_parecidos(login):
-            texto += "\n\n🚡 Atenção aos caracteres parecidos: I (i maiúsculo), l (L minúsculo), O (letra O), 0 (zero). Digite com cuidado!"
-
-        resposta.append({"message": texto})
-        usuarios_com_login_enviado.add(numero)
-        historico_conversas[numero].append("IA: Login enviado")
-        agendar_mensagens(numero)
-        return jsonify({"replies": resposta})
-
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
-        "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens. "
-        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga a frase:\n\n"
-        "'Baixe o app [NOME] 📺👇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
-        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
-        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
-        "Se for Android ou TV Box: Xtream IPTV Player.\n"
-        "Se for iPhone ou computador: Smarters Player Lite.\n"
-        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
-        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
-        "Se for Philco antiga, use o código especial 98.\n\n"
+        "Use emojis criativos. NÃO envie links ou imagens. "
+        "Oriente o cliente a DIGITAR o número do login no WhatsApp, como 91, 555, 224, 88 ou 98. NÃO gere login, apenas diga o número correto a ser digitado.\n\n"
+        "Regras:\n"
+        "- Samsung (nova): peça para digitar 91\n"
+        "- Android ou TV Box: peça para digitar 555\n"
+        "- Computador ou iPhone: peça para digitar 224\n"
+        "- TV antiga / Smart STB: peça para digitar 88\n"
+        "- Philco antiga: peça para digitar 98\n\n"
+        "Diga algo como: 'Digite *91* aqui na conversa para receber seu login. 😉'\n\n"
         "Histórico da conversa:\n" + contexto + f"\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
