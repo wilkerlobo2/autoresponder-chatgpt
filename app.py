@@ -1,86 +1,109 @@
-from flask import Flask, request, jsonify
-import openai
 import os
-import re
-import requests
+from flask import Flask, request, jsonify
+from datetime import datetime
+import openai
 
 app = Flask(__name__)
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# Mensagem inicial fixa
-MENSAGEM_INICIAL = (
+historico_conversas = {}
+
+mensagem_boas_vindas = (
     "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
     "Vamos começar seu teste gratuito?\n\n"
     "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
 )
 
-# Histórico de conversa por cliente
-historico_clientes = {}
+instrucoes_ia = """
+Você é um atendente de IPTV prestativo e direto. Seu objetivo é conduzir o cliente do início ao fim do atendimento, sempre de forma simples, curta e objetiva, como uma linha de produção.
 
-# Função principal para responder com IA
-def gerar_resposta_ia(mensagem, historico):
-    prompt_base = """
-Você é um atendente simpático e direto. Ajude o cliente a testar IPTV com o app ideal para o dispositivo dele. Nunca envie login direto. Oriente o cliente a DIGITAR um número conforme o dispositivo:
+📌 Regras e conhecimento:
 
-📺 Dispositivo → App + Número:
-- TV Samsung (nova): Xcloud 📺⬇️📲 → login 91
-- TV LG ou TV Roku: Xcloud 📺⬇️📲 → login 88
-- TV Philco antiga ou Roku antiga: SmartSTB (vídeo, DNS, etc) → login 88
-- TV Android (Box, TV, projetor): Xtream IPTV Player 📺⬇️📲 → login 555
-- Celular Android: Xtream IPTV Player 📱⬇️📲 → login 555
-- iPhone (iOS): Smarters Player Lite 📱⬇️📲 → login 555
-- Computador (Windows): Smarters IPTV (link e tutorial) 🧑‍💻 → login 224
+1. A mensagem de boas-vindas já foi enviada automaticamente. Não repita.
+2. Espere o cliente dizer o aparelho/dispositivo para indicar o app correto.
+3. Sempre diga diretamente qual app deve ser usado, com emojis e instruções como:
+   - “Baixe o app Xcloud 📺⬇️📲 para Samsung! Me avise quando instalar para que eu envie o seu login.”
+4. Após o cliente dizer “instalei”, “baixei” ou similar, oriente ele a digitar o número correspondente:
+   - Samsung (Xcloud): digitar `91`
+   - Android, Android TV, TV Box, Projetor, Celular Android: `555`
+   - Computador, iPhone (iOS): `224`
+   - Roku antiga, Philco antiga, TV antiga, etc: `88`
+5. Para Android, indique o app *Xtream IPTV Player*. Se o cliente não conseguir instalar, ofereça:
+   - 9Xtream Player, XCIPTV Player, VU IPTV Player, IPTV Xtream Player.
+   - Todos usam o mesmo login (555), mas **não diga isso ao cliente diretamente**.
+6. Se o cliente perguntar se há outras opções, diga que sim, e cite as alternativas.
+7. Após o cliente digitar o número, o outro app (AutoReply) cuida do envio do login.
+8. Após 30 minutos do envio do número, pergunte se está funcionando.
+9. Após 3 horas, diga que o teste acabou e envie os planos de forma criativa:
+   - R$ 26 (1 mês), R$ 47 (2 meses), R$ 68 (3 meses), R$ 129 (6 meses), R$ 185 (1 ano).
+10. Se o login contiver letras como “I”, “l”, “O”, “0”, alerte o cliente sobre possíveis confusões.
+11. Nunca envie o login diretamente. Apenas oriente a digitar o número (ex: 91).
+12. Caso o cliente diga que já tem o app instalado (ex: “já tenho o SmartOne”), antecipe e peça o MAC.
+13. Em casos de dúvida ou perguntas sobre IPTV, DNS, instalação, letras maiúsculas e minúsculas, etc., responda com naturalidade e clareza.
+14. Seja educado, use emojis de forma criativa e evite repetições.
+"""
 
-📌 Após indicar o app, diga:
-“Me avise quando instalar para que eu envie o seu login.”
-
-✅ Se o cliente disser que já instalou, diga:
-“Digite *[número]* aqui na conversa para receber seu login. 😉”
-
-⛔️ Só ofereça opções alternativas de apps Android (9Xtream Player, XCIPTV, VU IPTV Player, IPTV Xtream Play) se o cliente tiver dificuldade com Xtream IPTV Player.
-
-⚠️ Após 30 minutos do login, envie algo como:
-“Deu certo? Está funcionando bem aí? 😄”
-
-ℹ️ Sempre alerte o cliente:
-“Digite o login com atenção, pois letras como I, l, O e 0 podem confundir.”
-
-💡 Responda dúvidas sobre IPTV, DNS, travamentos e uso dos apps de forma simples, humana e criativa.
-
-Mensagem do cliente: """ + mensagem.strip()
-
-    resposta = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=historico + [{"role": "user", "content": prompt_base}],
-        temperature=0.7,
-    )
-    return resposta.choices[0].message.content.strip()
-
-@app.route("/", methods=["POST"])
-def responder():
-    data = request.json
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json()
     query = data.get("query", {})
-    sender = query.get("from", "")
+    sender = query.get("from")
     mensagem = query.get("message", "").strip()
 
-    # Histórico
-    historico = historico_clientes.get(sender, [])
+    if not sender or not mensagem:
+        return jsonify({"replies": [{"message": "Mensagem inválida recebida."}]}), 400
 
-    # Envia mensagem de boas-vindas se for a primeira interação
-    if sender not in historico_clientes:
-        historico_clientes[sender] = []
-        return jsonify({"replies": [{"message": MENSAGEM_INICIAL}]})
+    historico = historico_conversas.get(sender, [])
 
-    try:
-        resposta = gerar_resposta_ia(mensagem, historico)
-        historico.append({"role": "user", "content": mensagem})
-        historico.append({"role": "assistant", "content": resposta})
-        historico_clientes[sender] = historico[-10:]  # Limita o histórico
-        return jsonify({"replies": [{"message": resposta}]})
-    except Exception as e:
-        return jsonify({"replies": [{"message": f"⚠️ Erro ao responder: {str(e)}"}]})
+    # Primeira mensagem da conversa → envia a mensagem fixa de boas-vindas
+    if not historico:
+        historico_conversas[sender] = [
+            {"role": "system", "content": instrucoes_ia},
+            {"role": "user", "content": mensagem}
+        ]
+        return jsonify({"replies": [{"message": mensagem_boas_vindas}]})
+
+    # Adiciona mensagem do usuário ao histórico
+    historico.append({"role": "user", "content": mensagem})
+
+    # Geração da resposta com nova API
+    resposta = client.chat.completions.create(
+        model="gpt-4",
+        messages=historico,
+        temperature=0.7,
+    )
+    texto_resposta = resposta.choices[0].message.content.strip()
+
+    # Adiciona resposta da IA ao histórico
+    historico.append({"role": "assistant", "content": texto_resposta})
+    historico_conversas[sender] = historico
+
+    return jsonify({"replies": [{"message": texto_resposta}]})
+
+@app.route("/autoreply", methods=["POST"])
+def autoreply():
+    data = request.get_json()
+    mensagem = data.get("query", {}).get("message", "").strip()
+
+    respostas = {
+        "91": "Login enviado! 📺 Aproveite sua programação! Qualquer dúvida, me chama aqui! 😉",
+        "555": "Login enviado! ✅ Abra o app e digite o login manualmente. Qualquer dúvida, estou por aqui! 🤖",
+        "224": "Login ativado! 🖥️ Teste à vontade no seu computador ou iPhone! Me avise se tiver dúvidas. 👍",
+        "88": (
+            "🧠 Seu login de teste foi gerado!\n\n"
+            "📽️ Assista o vídeo com o passo a passo: https://youtu.be/7IAnxvLnntE\n"
+            "🌐 Use o DNS: 1.1.1.1 ou 8.8.8.8\n"
+            "🔁 Desligue e ligue a TV após instalar o app.\n"
+            "📲 App: *SMART STB*\n\n"
+            "👤 Usuário: [LOGIN]\n🔑 Senha: [SENHA]\n💰 Mensalidade: R$ 26,00\n\n"
+            "✅ Se funcionar, digite *100* aqui pra assinar!"
+        ),
+    }
+
+    resposta = respostas.get(mensagem, "Código inválido. Verifique e tente novamente. 😉")
+
+    return jsonify({"replies": [{"message": resposta}]})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
