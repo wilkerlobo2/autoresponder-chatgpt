@@ -13,36 +13,45 @@ def responder():
     sender = query.get("from", "")
     message = query.get("message", "").strip().lower()
 
-    if message in ["instalei", "baixei", "já instalei", "ja instalei", "instalei o app"]:
+    if message in ["instalei", "já instalei", "ja instalei", "instalei o app", "baixei"]:
         try:
-            # Enviar "91" para a webhook, simulando o que o AutoReply faria
+            # Requisição à webhook 91
             response = requests.post(WEBHOOK_91, json={"query": {"from": sender, "message": "91"}})
-            conteudo = response.json()
 
-            # Verifica se a resposta da webhook é uma lista de strings
+            # Tenta converter para JSON
+            try:
+                conteudo = response.json()
+            except Exception:
+                return jsonify({
+                    "replies": [{
+                        "message": f"⚠️ Webhook respondeu com texto plano: {response.text[:200]}"
+                    }]
+                })
+
+            # Se for lista de strings
             if isinstance(conteudo, list):
                 replies = [{"message": msg} for msg in conteudo]
                 return jsonify({"replies": replies})
 
-            # Caso a resposta seja um dict com 'replies', repassa direto
+            # Se for dicionário com 'replies'
             if isinstance(conteudo, dict) and "replies" in conteudo:
                 return jsonify(conteudo)
 
-            # Se a resposta for apenas uma string simples
+            # Se for uma string simples
             if isinstance(conteudo, str):
                 return jsonify({"replies": [{"message": conteudo}]})
 
-            # Caso nenhuma das opções acima funcione
+            # Qualquer outro formato inesperado
             return jsonify({
                 "replies": [{
-                    "message": "⚠️ Erro: formato de resposta inesperado da webhook."
+                    "message": f"⚠️ Resposta inesperada da webhook:\n{str(conteudo)[:200]}"
                 }]
             })
 
         except Exception as e:
             return jsonify({
                 "replies": [{
-                    "message": f"❌ Erro ao acessar a webhook: {str(e)}"
+                    "message": f"❌ Erro ao acessar a webhook:\n{str(e)}"
                 }]
             })
 
