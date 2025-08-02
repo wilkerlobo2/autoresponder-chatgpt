@@ -148,20 +148,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
 
 
-Pronto! O código completo está acima no documento App Final Iptv. Ele inclui:
-
-IA no controle total do atendimento.
-
-Detecção automática de dispositivo e sugestão do app correto com emojis.
-
-Geração de login automática via webhook.
-
-Tratamento especial para TVs Samsung antigas (requisição 88).
-
-Mensagens agendadas após 30 minutos e 3 horas.
-
-Compatível com o formato do AutoResponder.
-
-
-Você pode copiar, colar e testar. Se quiser que a IA também envie imagens dos apps junto com os nomes, posso incluir isso na próxima versão. Deseja?
-
