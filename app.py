@@ -20,6 +20,7 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
+    # Mensagem fixa de boas-vindas
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
@@ -32,6 +33,17 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
+    # Regra especial para PC
+    if any(p in mensagem for p in ["pc", "computador", "notebook", "windows", "macbook"]):
+        texto_pc = (
+            "Para PC, você precisa baixar o app usando o link:\n"
+            "https://7aps.online/iptvsmarters\n\n"
+            "Depois me avise quando abrir o link para que eu possa enviar o seu login. 😉"
+        )
+        historico_conversas[numero].append(f"IA: {texto_pc}")
+        return jsonify({"replies": [{"message": texto_pc}]})
+
+    # Detectar confirmação de instalação
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         historico = " ".join(historico_conversas[numero]).lower()
         if "samsung" in historico:
@@ -54,6 +66,7 @@ def responder():
         resposta.append({"message": texto})
         return jsonify({"replies": resposta})
 
+    # Resposta após digitar 224
     if mensagem.strip() == "224":
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
@@ -61,6 +74,7 @@ def responder():
         resposta.append({"message": "⏱️ Seu teste dura *3 horas* para você conhecer os canais e a qualidade. Aproveite!"})
         return jsonify({"replies": resposta})
 
+    # Prompt para IA
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
@@ -102,7 +116,9 @@ def responder():
 
     return jsonify({"replies": resposta})
 
+
 def agendar_mensagens(numero):
+    # 30 min
     time.sleep(1800)
     mensagem1 = (
         "⏱️ Já se passaram 30 minutos desde que você recebeu o teste.\n"
@@ -111,6 +127,7 @@ def agendar_mensagens(numero):
     historico_conversas[numero].append(f"IA: {mensagem1}")
     enviar_whatsapp(numero, mensagem1)
 
+    # 1h30 – aviso sobre canais de evento
     time.sleep(3600)
     mensagem2 = (
         "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\n"
@@ -119,6 +136,7 @@ def agendar_mensagens(numero):
     historico_conversas[numero].append(f"IA: {mensagem2}")
     enviar_whatsapp(numero, mensagem2)
 
+    # 3h – fim do teste e planos
     time.sleep(5400)
     mensagem3 = (
         "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n"
@@ -132,8 +150,11 @@ def agendar_mensagens(numero):
     historico_conversas[numero].append(f"IA: {mensagem3}")
     enviar_whatsapp(numero, mensagem3)
 
+
 def enviar_whatsapp(numero, mensagem):
+    # Aqui você pode integrar com API externa se quiser
     print(f"[Agendado para {numero}] {mensagem}")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
