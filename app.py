@@ -20,7 +20,7 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    # Mensagem fixa de boas-vindas
+    # Mensagem de boas-vindas
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
@@ -46,7 +46,11 @@ def responder():
     # Detectar confirmação de instalação
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         historico = " ".join(historico_conversas[numero]).lower()
-        if "samsung" in historico:
+
+        # Nova regra: qualquer menção a xcloud usa 91
+        if "xcloud" in historico:
+            codigo = "91"
+        elif "samsung" in historico:
             codigo = "91"
         elif any(d in historico for d in ["tv box", "android", "xtream", "celular", "projetor"]):
             codigo = "555"
