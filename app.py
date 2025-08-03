@@ -47,12 +47,12 @@ def responder():
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         historico = " ".join(historico_conversas[numero]).lower()
 
-        # Nova regra: qualquer menção a xcloud usa 91
+        # Regra: qualquer menção a Xcloud usa 91
         if "xcloud" in historico:
             codigo = "91"
         elif "samsung" in historico:
             codigo = "91"
-        elif any(d in historico for d in ["tv box", "android", "xtream", "celular", "projetor"]):
+        elif any(d in historico for d in ["xtream", "xciptv", "9xtream", "vu iptv", "android", "tv box", "celular", "projetor"]):
             codigo = "555"
         elif any(d in historico for d in ["iphone", "ios"]):
             codigo = "224"
@@ -122,7 +122,7 @@ def responder():
 
 
 def agendar_mensagens(numero):
-    # 30 min
+    # 30 minutos
     time.sleep(1800)
     mensagem1 = (
         "⏱️ Já se passaram 30 minutos desde que você recebeu o teste.\n"
@@ -131,7 +131,7 @@ def agendar_mensagens(numero):
     historico_conversas[numero].append(f"IA: {mensagem1}")
     enviar_whatsapp(numero, mensagem1)
 
-    # 1h30 – aviso sobre canais de evento
+    # 1h30 – canais de evento
     time.sleep(3600)
     mensagem2 = (
         "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\n"
