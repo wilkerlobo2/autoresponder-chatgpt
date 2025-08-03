@@ -20,8 +20,7 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    # Boas-vindas fixas com verificação extra
-    if numero not in historico_conversas or len(historico_conversas[numero]) == 0:
+    if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
             "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
@@ -33,55 +32,62 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
-    # Se o cliente disser que já instalou o app
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei"]):
         historico = " ".join(historico_conversas[numero]).lower()
         if "samsung" in historico:
             codigo = "91"
         elif any(d in historico for d in ["tv box", "android", "xtream", "celular", "projetor"]):
             codigo = "555"
-        elif any(d in historico for d in ["iphone", "ios", "computador", "pc", "notebook", "macbook"]):
+        elif any(d in historico for d in ["iphone", "ios"]):
+            codigo = "224"
+        elif any(d in historico for d in ["computador", "pc", "notebook", "macbook"]):
             codigo = "224"
         elif "philco antiga" in historico:
             codigo = "98"
         elif "tv antiga" in historico or "smart stb" in historico:
             codigo = "88"
         else:
-            codigo = "91"  # padrão
+            codigo = "91"
 
         texto = f"Digite **{codigo}** aqui na conversa para receber seu login. 😉"
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
 
-        # Agendar mensagem de 30 minutos (1.800 segundos)
         if numero not in agendados:
             agendados[numero] = True
             threading.Thread(target=mensagem_agendada, args=(numero,), daemon=True).start()
 
         return jsonify({"replies": resposta})
 
-    # Prompt principal da IA
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
-        "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links ou imagens, exceto quando for o link para computador.\n\n"
-        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone), diga QUAL app ele deve baixar e diga:\n"
+        "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
+
+        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone, Computador), diga QUAL app ele deve baixar e diga:\n\n"
         "'Baixe o app [NOME] 📺⬇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
-        "Regras específicas:\n"
-        "- Samsung, LG, Roku, Philco nova: Xcloud\n"
-        "- Android, TV Box, projetor, celular Android: Xtream IPTV Player\n"
-        "- Alternativas para Android: 9xtream, XCIPTV, Vu IPTV Player\n"
-        "- iPhone (iOS): Smarters Player Lite\n"
-        "- Computador (PC, notebook): Envie esse link para baixar o app: https://7aps.online/iptvsmarters\n"
-        "- Após o cliente dizer que baixou no PC, peça para digitar 224\n"
-        "- Philips ou AOC: OTT Player ou Duplecast\n"
-        "- LG antiga (caso Xcloud não funcione): Duplecast ou SmartOne (se SmartOne, pedir o MAC)\n"
-        "- Philco antiga: diga para digitar o código 98\n"
-        "- TVs antigas ou que usam SMART STB: usar o código 88\n\n"
-        "Você também deve responder dúvidas sobre IPTV, login, DNS, letras maiúsculas e minúsculas (ex: O e 0, I e l).\n"
-        "Após 3 horas de teste ou se o cliente perguntar sobre valores ou planos, envie:\n"
-        "- Planos: R$ 26,00 (1 mês), R$ 47,00 (2 meses), R$ 68,00 (3 meses), R$ 129,00 (6 meses), R$ 185,00 (1 ano)\n"
-        "- Formas de pagamento: Pix (CNPJ abaixo) ou Cartão (link a combinar)\n"
-        "- CNPJ para Pix: *00.000.000/0000-00* (enviar em mensagem separada para facilitar a cópia)\n\n"
+
+        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
+        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
+        "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
+        "Se o cliente perguntar por outros apps Android, indique também 9xtream, XCIPTV ou Vu IPTV Player.\n"
+        "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (ícone azul, da App Store).\n"
+        "Se for computador (PC, notebook, etc): peça para abrir o navegador e acessar:\n"
+        "https://7aps.online/iptvsmarters\n"
+        "Depois que o cliente disser que instalou, oriente a digitar **224**.\n\n"
+        "⚠️ Nunca confunda computador com iPhone.\n"
+        "→ Para computador: use o link.\n"
+        "→ Para iPhone/iOS: use o app da loja.\n\n"
+        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
+        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
+        "Se for Philco antiga, use o código especial 98.\n\n"
+
+        "Se o cliente perguntar valores, envie os planos somente depois de 3 horas de teste ou se ele pedir:\n"
+        "💰 Planos disponíveis:\n"
+        "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
+        "Formas de pagamento: Pix (CNPJ separado para facilitar a cópia) e cartão via link seguro.\n"
+        "PIX (CNPJ): 46.370.366/0001-97\n"
+        "💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
+        "Responda dúvidas sobre IPTV, login, DNS, letras maiúsculas/minúsculas, teste e apps.\n\n"
         f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
@@ -99,7 +105,6 @@ def responder():
 
     return jsonify({"replies": resposta})
 
-# Mensagem programada após 30 minutos
 def mensagem_agendada(numero):
     time.sleep(1800)
     mensagem = (
@@ -108,7 +113,6 @@ def mensagem_agendada(numero):
     )
     historico_conversas[numero].append(f"IA: {mensagem}")
     agendados.pop(numero, None)
-    # Aqui você pode integrar envio real se quiser, por enquanto só registra no histórico
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
