@@ -7,7 +7,6 @@ import time
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 historico_conversas = {}
-agendados = {}
 
 @app.route("/", methods=["POST"])
 def responder():
@@ -38,7 +37,7 @@ def responder():
         texto_pc = (
             "Para PC, você precisa baixar o app usando o link:\n"
             "https://7aps.online/iptvsmarters\n\n"
-            "Depois me avise quando abrir o link para que eu possa enviar o seu login. 😉"
+            "Depois me avise quando abrir o link para que eu possa enviar o seu login. ☺️"
         )
         historico_conversas[numero].append(f"IA: {texto_pc}")
         return jsonify({"replies": [{"message": texto_pc}]})
@@ -65,12 +64,12 @@ def responder():
         else:
             codigo = "91"
 
-        texto = f"Digite **{codigo}** aqui na conversa para receber seu login. 😉"
+        texto = f"Digite **{codigo}** aqui na conversa para receber seu login. ☺️"
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
         return jsonify({"replies": resposta})
 
-    # Resposta após digitar 224
+    # Resposta após digitar 224 (gatilho do teste)
     if mensagem.strip() == "224":
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
@@ -88,17 +87,17 @@ def responder():
         "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
         "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
         "Se o cliente perguntar por outros apps Android, indique também 9xtream, XCIPTV ou Vu IPTV Player.\n"
-        "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (ícone azul, da App Store).\n"
+        "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (da App Store, ícone azul).\n"
         "Se for computador, PC, notebook ou sistema Windows:\n"
         "1️⃣ Diga: 'Para PC, você precisa baixar o app usando o link:'\n"
         "2️⃣ Envie o link sozinho: https://7aps.online/iptvsmarters\n"
         "3️⃣ Depois diga: 'Depois me avise quando abrir o link para que eu possa enviar o seu login.'\n"
-        "⚠️ Não diga que não precisa instalar app. O link é para *baixar o app para PC*.\n"
+        "⚠️ NÃO diga que não precisa instalar app. O link é para *baixar o app para PC*.\n"
         "⚠️ Só diga para digitar *224* DEPOIS que o cliente disser que abriu ou instalou.\n\n"
         "Durante o teste, agende lembrete com 30 minutos e mensagem informando que canais como *Premiere, HBO Max, Disney+* só funcionam perto dos eventos ao vivo.\n"
+        "Depois diga que temos SD, HD, FHD e 4K como opções.\n"
         "Se o teste acabar (após 3h), envie os planos:\n"
-        "💰 Planos disponíveis:\n"
-        "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
+        "💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
         "Pagamento: Pix (CNPJ separado) ou cartão.\n"
         "PIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
         f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
@@ -119,34 +118,20 @@ def responder():
     return jsonify({"replies": resposta})
 
 def agendar_mensagens(numero):
-    time.sleep(1800)  # 30 min
-    mensagem1 = (
-        "⏱️ Já se passaram 30 minutos desde que você recebeu o teste.\n"
-        "Conseguiu assistir direitinho? Precisa de ajuda? 💬"
-    )
-    historico_conversas[numero].append(f"IA: {mensagem1}")
-    enviar_whatsapp(numero, mensagem1)
+    time.sleep(5)
+    enviar_whatsapp(numero, "⚠️ Considere as *letras maiúsculas e minúsculas* ao digitar seu login.\nVerifique também se o link de DNS tem ou não 's' no http (http:// ou https://).")
 
-    time.sleep(3600)  # +1h
-    mensagem2 = (
-        "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\n"
-        "Se estiverem fechados, fique tranquilo: eles ativam automaticamente perto do horário. 😉"
-    )
-    historico_conversas[numero].append(f"IA: {mensagem2}")
-    enviar_whatsapp(numero, mensagem2)
+    time.sleep(1795)  # até completar 30 min
+    enviar_whatsapp(numero, "⏱️ Deu certo o login? Conseguiu assistir direitinho? 💬")
 
-    time.sleep(5400)  # +1h30 = 3h total
-    mensagem3 = (
-        "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n"
-        "💰 Planos disponíveis:\n"
-        "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
-        "Formas de pagamento:\n"
-        "PIX (CNPJ): 46.370.366/0001-97\n"
-        "💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
-        "Se quiser assinar, me avise! 📲"
-    )
-    historico_conversas[numero].append(f"IA: {mensagem3}")
-    enviar_whatsapp(numero, mensagem3)
+    time.sleep(1800)  # +30min (1h)
+    enviar_whatsapp(numero, "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\nSe estiverem fechados agora, fique tranquilo: eles ativam automaticamente perto do horário. 😉")
+
+    time.sleep(1800)  # +30min (1h30)
+    enviar_whatsapp(numero, "🎥 Temos *4 opções de qualidade* para o mesmo conteúdo: SD, HD, FHD e 4K.\nSe algum canal estiver travando, podemos mudar a qualidade para melhorar a experiência! 😉")
+
+    time.sleep(5400)  # +1h30 (3h total)
+    enviar_whatsapp(numero, "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\nFormas de pagamento:\nPIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\nSe quiser assinar, me avise! 📲")
 
 def enviar_whatsapp(numero, mensagem):
     print(f"[Agendado para {numero}] {mensagem}")
@@ -154,4 +139,21 @@ def enviar_whatsapp(numero, mensagem):
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
 
+
+Código completo adicionado no editor como você pediu. Ele já inclui:
+
+Mensagem de boas-vindas.
+
+Detecção de dispositivos e indicação do app.
+
+Instruções específicas para PC e iPhone.
+
+Geração automática de lembretes ao longo das 3 horas de teste.
+
+Respostas naturais com IA via OpenAI.
+
+Avisos importantes sobre DNS e digitação do login.
+
+
+Se quiser fazer mais ajustes ou adicionar novos lembretes ou funções, posso editar direto no código acima. Deseja continuar?
 
