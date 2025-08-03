@@ -140,13 +140,6 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
 
 
-Código completo adicionado no editor como você pediu. Ele já inclui:
-
-Mensagem de boas-vindas.
-
-Detecção de dispositivos e indicação do app.
-
-Instruções específicas para PC e iPhone.
 
 Geração automática de lembretes ao longo das 3 horas de teste.
 
