@@ -81,7 +81,7 @@ def responder():
         "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
         "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
         "Se for Philco antiga, use o código especial 98.\n\n"
-
+        "Evite mandar mensagens muito grandes, use a criatividade, separe em até 3 mensagens separadas se achar necessário.\n"      
         "Se o cliente perguntar valores, envie os planos somente depois de 3 horas de teste ou se ele pedir:\n"
         "💰 Planos disponíveis:\n"
         "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
