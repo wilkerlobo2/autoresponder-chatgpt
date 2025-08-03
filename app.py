@@ -71,7 +71,7 @@ def responder():
         "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
         "Se o cliente perguntar por outros apps Android, indique também 9xtream, XCIPTV ou Vu IPTV Player.\n"
         "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (ícone azul, da App Store).\n"
-        "Se for computador (PC, notebook, etc): peça para abrir o navegador e acessar:\n"
+        "Se for computador, PC, notebook, sistema Windows em geral, etc): peça para abrir o navegador e acessar:\n"
         "https://7aps.online/iptvsmarters\n"
         "Depois que o cliente disser que instalou, oriente a digitar **224**.\n\n"
         "⚠️ Nunca confunda computador com iPhone.\n"
