@@ -141,12 +141,3 @@ if __name__ == "__main__":
 
 
 
-Geração automática de lembretes ao longo das 3 horas de teste.
-
-Respostas naturais com IA via OpenAI.
-
-Avisos importantes sobre DNS e digitação do login.
-
-
-Se quiser fazer mais ajustes ou adicionar novos lembretes ou funções, posso editar direto no código acima. Deseja continuar?
-
