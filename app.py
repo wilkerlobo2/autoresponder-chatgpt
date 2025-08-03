@@ -20,7 +20,6 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    # Mensagem fixa de boas-vindas para todos os contatos
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
@@ -33,7 +32,6 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
-    # Detectar 'instalei' para gerar o código
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         historico = " ".join(historico_conversas[numero]).lower()
         if "samsung" in historico:
@@ -56,7 +54,6 @@ def responder():
         resposta.append({"message": texto})
         return jsonify({"replies": resposta})
 
-    # Quando o cliente digitar "224", iniciar fluxo especial
     if mensagem.strip() == "224":
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
@@ -64,14 +61,11 @@ def responder():
         resposta.append({"message": "⏱️ Seu teste dura *3 horas* para você conhecer os canais e a qualidade. Aproveite!"})
         return jsonify({"replies": resposta})
 
-    # Prompt para a IA gerar as demais respostas
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
-
         "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone, Computador), diga QUAL app ele deve baixar e diga:\n"
         "'Baixe o app [NOME] 📺⬇️📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
-
         "Se for Samsung, sempre diga que o app é o Xcloud.\n"
         "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
         "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
@@ -81,12 +75,11 @@ def responder():
         "1️⃣ Diga: 'Para PC, você precisa baixar o app usando o link:'\n"
         "2️⃣ Envie o link sozinho: https://7aps.online/iptvsmarters\n"
         "3️⃣ Depois diga: 'Depois me avise quando abrir o link para que eu possa enviar o seu login.'\n"
-        "⚠️ Não diga que não precisa instalar app. O link é para *baixar o app para PC*.\n\n"
+        "⚠️ Não diga que não precisa instalar app. O link é para *baixar o app para PC*.\n"
+        "⚠️ Só diga para digitar *224* DEPOIS que o cliente disser que abriu ou instalou.\n\n"
         "Se o cliente disser que acessou, oriente a digitar **224**. Depois disso, aguarde 4 segundos e diga que o teste dura 3 horas.\n"
         "NÃO envie valores agora, só depois de 3 horas ou se o cliente pedir.\n\n"
-
         "Durante o teste, agende lembrete com 30 minutos e mensagem informando que canais como *Premiere, HBO Max, Disney+* só funcionam perto dos eventos ao vivo.\n"
-
         "Se o teste acabar (após 3h), envie os planos:\n"
         "💰 Planos disponíveis:\n"
         "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
@@ -109,9 +102,7 @@ def responder():
 
     return jsonify({"replies": resposta})
 
-# Agendamento de mensagens após login do teste
 def agendar_mensagens(numero):
-    # 30 minutos – perguntar se está funcionando
     time.sleep(1800)
     mensagem1 = (
         "⏱️ Já se passaram 30 minutos desde que você recebeu o teste.\n"
@@ -120,8 +111,7 @@ def agendar_mensagens(numero):
     historico_conversas[numero].append(f"IA: {mensagem1}")
     enviar_whatsapp(numero, mensagem1)
 
-    # 1h30 – informar canais que só abrem na hora dos eventos
-    time.sleep(3600)  # total 1h30 após início
+    time.sleep(3600)
     mensagem2 = (
         "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\n"
         "Se estiverem fechados, fique tranquilo: eles ativam automaticamente perto do horário. 😉"
@@ -129,8 +119,7 @@ def agendar_mensagens(numero):
     historico_conversas[numero].append(f"IA: {mensagem2}")
     enviar_whatsapp(numero, mensagem2)
 
-    # Após 3 horas – finaliza teste e envia planos
-    time.sleep(5400)  # total 3h após início
+    time.sleep(5400)
     mensagem3 = (
         "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n"
         "💰 Planos disponíveis:\n"
@@ -144,7 +133,6 @@ def agendar_mensagens(numero):
     enviar_whatsapp(numero, mensagem3)
 
 def enviar_whatsapp(numero, mensagem):
-    # Substitua por envio real via API externa se necessário
     print(f"[Agendado para {numero}] {mensagem}")
 
 if __name__ == "__main__":
