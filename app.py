@@ -20,6 +20,7 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
+    # Mensagem fixa de boas-vindas para todos os contatos
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
@@ -32,6 +33,7 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
+    # Detectar 'instalei' para gerar o código
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         historico = " ".join(historico_conversas[numero]).lower()
         if "samsung" in historico:
@@ -52,13 +54,17 @@ def responder():
         texto = f"Digite **{codigo}** aqui na conversa para receber seu login. 😉"
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
-
-        if numero not in agendados:
-            agendados[numero] = True
-            threading.Thread(target=mensagem_agendada, args=(numero,), daemon=True).start()
-
         return jsonify({"replies": resposta})
 
+    # Quando o cliente digitar "224", iniciar fluxo especial
+    if mensagem.strip() == "224":
+        resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
+        threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
+        time.sleep(4)
+        resposta.append({"message": "⏱️ Seu teste dura *3 horas* para você conhecer os canais e a qualidade. Aproveite!"})
+        return jsonify({"replies": resposta})
+
+    # Prompt para a IA gerar as demais respostas
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
@@ -72,28 +78,20 @@ def responder():
         "Se o cliente perguntar por outros apps Android, indique também 9xtream, XCIPTV ou Vu IPTV Player.\n"
         "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (ícone azul, da App Store).\n"
         "Se for computador, PC, notebook ou sistema Windows:\n"
-        "1️⃣ Diga: 'Para PC, não é necessário instalar nenhum app. Basta abrir o navegador e acessar:'\n"
+        "1️⃣ Diga: 'Para PC, você precisa baixar o app usando o link:'\n"
         "2️⃣ Envie o link sozinho: https://7aps.online/iptvsmarters\n"
         "3️⃣ Depois diga: 'Depois me avise quando abrir o link para que eu possa enviar o seu login.'\n"
-        "⚠️ Não diga que é necessário instalar Xtream para PC.\n"
-        "Use emojis e separe a resposta em até 3 mensagens se for melhor.\n"
-        "Depois que o cliente disser que acessou, oriente a digitar **224**.\n\n"
-        "PC ou pc é o mesmo que computador.\n"
-        "⚠️ Nunca confunda computador com iPhone.\n"
-        "→ Para computador: use o link.\n"
-        "→ Para iPhone/iOS: use o app da loja.\n\n"
-        "Se for LG antiga e o Xcloud não funcionar, indique Duplecast ou SmartOne.\n"
-        "Se for Philips ou AOC: indique OTT Player ou Duplecast.\n"
-        "Se for Philco antiga, use o código especial 98.\n\n"
-        "Evite mandar mensagens muito grandes, use a criatividade, separe em até 3 mensagens separadas se achar necessário.\n"
-        
-        "Se o cliente perguntar valores, envie os planos somente depois de 3 horas de teste ou se ele pedir:\n"
+        "⚠️ Não diga que não precisa instalar app. O link é para *baixar o app para PC*.\n\n"
+        "Se o cliente disser que acessou, oriente a digitar **224**. Depois disso, aguarde 4 segundos e diga que o teste dura 3 horas.\n"
+        "NÃO envie valores agora, só depois de 3 horas ou se o cliente pedir.\n\n"
+
+        "Durante o teste, agende lembrete com 30 minutos e mensagem informando que canais como *Premiere, HBO Max, Disney+* só funcionam perto dos eventos ao vivo.\n"
+
+        "Se o teste acabar (após 3h), envie os planos:\n"
         "💰 Planos disponíveis:\n"
         "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
-        "Formas de pagamento: Pix (CNPJ separado para facilitar a cópia) e cartão via link seguro.\n"
-        "PIX (CNPJ): 46.370.366/0001-97\n"
-        "💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
-        "Responda dúvidas sobre IPTV, login, DNS, letras maiúsculas/minúsculas, teste e apps.\n\n"
+        "Pagamento: Pix (CNPJ separado) ou cartão.\n"
+        "PIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
         f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
@@ -111,14 +109,43 @@ def responder():
 
     return jsonify({"replies": resposta})
 
-def mensagem_agendada(numero):
+# Agendamento de mensagens após login do teste
+def agendar_mensagens(numero):
+    # 30 minutos – perguntar se está funcionando
     time.sleep(1800)
-    mensagem = (
+    mensagem1 = (
         "⏱️ Já se passaram 30 minutos desde que você recebeu o teste.\n"
-        "Conseguiu assistir direitinho? Teve algum problema? Estou aqui caso precise de ajuda! 💬"
+        "Conseguiu assistir direitinho? Precisa de ajuda? 💬"
     )
-    historico_conversas[numero].append(f"IA: {mensagem}")
-    agendados.pop(numero, None)
+    historico_conversas[numero].append(f"IA: {mensagem1}")
+    enviar_whatsapp(numero, mensagem1)
+
+    # 1h30 – informar canais que só abrem na hora dos eventos
+    time.sleep(3600)  # total 1h30 após início
+    mensagem2 = (
+        "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\n"
+        "Se estiverem fechados, fique tranquilo: eles ativam automaticamente perto do horário. 😉"
+    )
+    historico_conversas[numero].append(f"IA: {mensagem2}")
+    enviar_whatsapp(numero, mensagem2)
+
+    # Após 3 horas – finaliza teste e envia planos
+    time.sleep(5400)  # total 3h após início
+    mensagem3 = (
+        "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n"
+        "💰 Planos disponíveis:\n"
+        "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
+        "Formas de pagamento:\n"
+        "PIX (CNPJ): 46.370.366/0001-97\n"
+        "💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
+        "Se quiser assinar, me avise! 📲"
+    )
+    historico_conversas[numero].append(f"IA: {mensagem3}")
+    enviar_whatsapp(numero, mensagem3)
+
+def enviar_whatsapp(numero, mensagem):
+    # Substitua por envio real via API externa se necessário
+    print(f"[Agendado para {numero}] {mensagem}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
