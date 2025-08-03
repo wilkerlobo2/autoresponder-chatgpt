@@ -155,20 +155,3 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
 
 
-Pronto! O código completo atualizado foi enviado no formato Python acima. Ele inclui:
-
-Mensagem de boas-vindas fixa.
-
-Atendimento 100% guiado por IA via prompt.
-
-Lógica inteligente para decidir qual código o cliente deve digitar (91, 555, 224, etc.).
-
-Lembretes automáticos após 30 min, 1h30 e 3h.
-
-Orientações diferentes para iPhone e PC, mesmo com o mesmo código (224).
-
-Detecção do histórico para corrigir casos como o que você relatou (ex: cliente muda de LG para Android).
-
-
-Se quiser, posso continuar ajustando conforme novas situações. Deseja testar mais algum cenário?
-
