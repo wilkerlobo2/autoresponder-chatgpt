@@ -74,6 +74,7 @@ def responder():
         "Se for computador, PC, notebook, sistema Windows em geral, etc): peça para abrir o navegador e acessar:\n"
         "https://7aps.online/iptvsmarters\n"
         "Depois que o cliente disser que instalou, oriente a digitar **224**.\n\n"
+        "PC ou pc é o mesmo que computador.\n"        
         "⚠️ Nunca confunda computador com iPhone.\n"
         "→ Para computador: use o link.\n"
         "→ Para iPhone/iOS: use o app da loja.\n\n"
