@@ -32,7 +32,7 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
-    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei"]):
+    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         historico = " ".join(historico_conversas[numero]).lower()
         if "samsung" in historico:
             codigo = "91"
@@ -40,7 +40,7 @@ def responder():
             codigo = "555"
         elif any(d in historico for d in ["iphone", "ios"]):
             codigo = "224"
-        elif any(d in historico for d in ["computador", "pc", "notebook", "macbook"]):
+        elif any(d in historico for d in ["computador", "pc", "notebook", "macbook", "windows"]):
             codigo = "224"
         elif "philco antiga" in historico:
             codigo = "98"
@@ -72,11 +72,12 @@ def responder():
         "Se o cliente perguntar por outros apps Android, indique também 9xtream, XCIPTV ou Vu IPTV Player.\n"
         "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (ícone azul, da App Store).\n"
         "Se for computador, PC, notebook ou sistema Windows:\n"
-        "1️⃣ Diga: 'Para PC, você precisa abrir o navegador e acessar o link:'\n"
+        "1️⃣ Diga: 'Para PC, não é necessário instalar nenhum app. Basta abrir o navegador e acessar:'\n"
         "2️⃣ Envie o link sozinho: https://7aps.online/iptvsmarters\n"
-        "3️⃣ Depois diga: 'Depois me avise quando instalar para que eu possa enviar o seu login.'\n"
+        "3️⃣ Depois diga: 'Depois me avise quando abrir o link para que eu possa enviar o seu login.'\n"
+        "⚠️ Não diga que é necessário instalar Xtream para PC.\n"
         "Use emojis e separe a resposta em até 3 mensagens se for melhor.\n"
-        "Depois que o cliente disser que instalou, oriente a digitar **224**.\n\n"
+        "Depois que o cliente disser que acessou, oriente a digitar **224**.\n\n"
         "PC ou pc é o mesmo que computador.\n"
         "⚠️ Nunca confunda computador com iPhone.\n"
         "→ Para computador: use o link.\n"
