@@ -69,8 +69,8 @@ def responder():
         resposta.append({"message": texto})
         return jsonify({"replies": resposta})
 
-    # Resposta após digitar 224 (gatilho do teste)
-    if mensagem.strip() == "224":
+    # Gatilho do teste (código 224, 555, 91, 88, etc.)
+    if mensagem.strip() in ["224", "555", "91", "88", "98"]:
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
         time.sleep(4)
@@ -118,26 +118,25 @@ def responder():
     return jsonify({"replies": resposta})
 
 def agendar_mensagens(numero):
-    time.sleep(5)
-    enviar_whatsapp(numero, "⚠️ Considere as *letras maiúsculas e minúsculas* ao digitar seu login.\nVerifique também se o link de DNS tem ou não 's' no http (http:// ou https://).")
+    def enviar(msg, atraso):
+        time.sleep(atraso)
+        enviar_whatsapp(numero, msg)
 
-    time.sleep(1795)  # até completar 30 min
-    enviar_whatsapp(numero, "⏱️ Deu certo o login? Conseguiu assistir direitinho? 💬")
+    mensagens = [
+        ("⚠️ Considere as *letras maiúsculas e minúsculas* ao digitar seu login.\nVerifique também se o link de DNS tem ou não 's' no http (http:// ou https://).", 5),
+        ("⏱️ Deu certo o login? Conseguiu assistir direitinho? 💬", 1800),
+        ("📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\nSe estiverem fechados agora, fique tranquilo: eles ativam automaticamente perto do horário. 😉", 3600),
+        ("🎥 Temos *4 opções de qualidade* para o mesmo conteúdo: SD, HD, FHD e 4K.\nSe algum canal estiver travando, podemos mudar a qualidade para melhorar a experiência! 😉", 5400),
+        ("⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\nFormas de pagamento:\nPIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\nSe quiser assinar, me avise! 📲", 10800)
+    ]
 
-    time.sleep(1800)  # +30min (1h)
-    enviar_whatsapp(numero, "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\nSe estiverem fechados agora, fique tranquilo: eles ativam automaticamente perto do horário. 😉")
-
-    time.sleep(1800)  # +30min (1h30)
-    enviar_whatsapp(numero, "🎥 Temos *4 opções de qualidade* para o mesmo conteúdo: SD, HD, FHD e 4K.\nSe algum canal estiver travando, podemos mudar a qualidade para melhorar a experiência! 😉")
-
-    time.sleep(5400)  # +1h30 (3h total)
-    enviar_whatsapp(numero, "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\nFormas de pagamento:\nPIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\nSe quiser assinar, me avise! 📲")
+    for msg, delay in mensagens:
+        threading.Thread(target=enviar, args=(msg, delay), daemon=True).start()
 
 def enviar_whatsapp(numero, mensagem):
     print(f"[Agendado para {numero}] {mensagem}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
 
 
