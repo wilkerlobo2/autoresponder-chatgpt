@@ -76,6 +76,18 @@ def responder():
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
+        "🕒 Informe sempre que o teste gratuito dura *3 horas* — e não 24 horas.\n"
+        "Se o cliente perguntar sobre valores ou preços, envie os planos:\n"
+        "💰 Planos disponíveis:\n"
+        "1 mês – R$ 26,00\n"
+        "2 meses – R$ 47,00\n"
+        "3 meses – R$ 68,00\n"
+        "6 meses – R$ 129,00\n"
+        "1 ano – R$ 185,00\n\n"
+        "💳 Formas de pagamento:\n"
+        "Pix (envie o CNPJ sozinho na próxima mensagem para facilitar cópia): 46.370.366/0001-97\n"
+        "Cartão: https://mpago.la/2Nsh3Fq\n\n"
+        "⚠️ Envie o Pix (CNPJ) sempre separado para facilitar a cópia.\n\n"
         "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone, Computador), diga QUAL app ele deve baixar e diga:\n"
         "'Baixe o app [NOME] 📺👇📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
         "Se for Samsung, sempre diga que o app é o Xcloud.\n"
@@ -94,13 +106,18 @@ def responder():
 
     try:
         resposta_ia = client.chat.completions.create(
-            model="gpt-4o",  # modelo ajustado para GPT-4o
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.6
         )
         texto = resposta_ia.choices[0].message.content.strip()
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
+
+        # Verifica se deve mandar o Pix separado
+        if "pix" in mensagem or "pagamento" in mensagem or "valor" in mensagem or "quanto" in mensagem or "plano" in mensagem:
+            resposta.append({"message": "Pix (CNPJ): 46.370.366/0001-97"})
+
     except Exception as e:
         resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
