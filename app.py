@@ -1,8 +1,6 @@
 from flask import Flask, request, jsonify
 from openai import OpenAI
 import os
-import threading
-import time
 
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -72,9 +70,6 @@ def responder():
     # Gatilho do teste
     if mensagem.strip() in ["224", "555", "91", "88", "98"]:
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
-        threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
-        time.sleep(4)
-        resposta.append({"message": "⏱️ Seu teste dura *3 horas* para você conhecer os canais e a qualidade. Aproveite!"})
         return jsonify({"replies": resposta})
 
     # Prompt para a IA
@@ -94,18 +89,12 @@ def responder():
         "3️⃣ Depois diga: 'Depois me avise quando abrir o link para que eu possa enviar o seu login.'\n"
         "⚠️ NÃO diga que não precisa instalar app. O link é para *baixar o app para PC*.\n"
         "⚠️ Só diga para digitar *224* DEPOIS que o cliente disser que abriu ou instalou.\n\n"
-        "Durante o teste, agende lembrete com 30 minutos e mensagem informando que canais como *Premiere, HBO Max, Disney+* só funcionam perto dos eventos ao vivo.\n"
-        "Depois diga que temos SD, HD, FHD e 4K como opções.\n"
-        "Se o teste acabar (após 3h), envie os planos:\n"
-        "💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
-        "Pagamento: Pix (CNPJ separado) ou cartão.\n"
-        "PIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\n"
         f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
     try:
         resposta_ia = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",  # modelo ajustado para GPT-4o
             messages=[{"role": "user", "content": prompt}],
             temperature=0.6
         )
@@ -116,27 +105,6 @@ def responder():
         resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
 
     return jsonify({"replies": resposta})
-
-# Mensagens automáticas com correção
-def agendar_mensagens(numero):
-    def enviar(msg, atraso, destino):
-        time.sleep(atraso)
-        enviar_whatsapp(destino, msg)
-
-    mensagens = [
-        ("⚠️ Considere as *letras maiúsculas e minúsculas* ao digitar seu login.\nVerifique também se o link de DNS tem ou não 's' no http (http:// ou https://).", 5),
-        ("⏱️ Deu certo o login? Conseguiu assistir direitinho? 💬", 1800),
-        ("📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\nSe estiverem fechados agora, fique tranquilo: eles ativam automaticamente perto do horário. 😉", 3600),
-        ("🎥 Temos *4 opções de qualidade* para o mesmo conteúdo: SD, HD, FHD e 4K.\nSe algum canal estiver travando, podemos mudar a qualidade para melhorar a experiência! 😉", 5400),
-        ("⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\nFormas de pagamento:\nPIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\nSe quiser assinar, me avise! 📲", 10800)
-    ]
-
-    for msg, delay in mensagens:
-        threading.Thread(target=enviar, args=(msg, delay, numero), daemon=True).start()
-
-# Simula envio do WhatsApp
-def enviar_whatsapp(numero, mensagem):
-    print(f"[Agendado para {numero}] {mensagem}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
