@@ -19,6 +19,7 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
+    # Mensagem de boas-vindas fixa
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
@@ -31,6 +32,7 @@ def responder():
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
+    # Regra especial para PC
     if any(p in mensagem for p in ["pc", "computador", "notebook", "windows", "macbook"]):
         texto_pc = (
             "Para PC, você precisa baixar o app usando o link:\n"
@@ -40,6 +42,7 @@ def responder():
         historico_conversas[numero].append(f"IA: {texto_pc}")
         return jsonify({"replies": [{"message": texto_pc}]})
 
+    # Detectar confirmação de instalação
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         ultimas = [m for m in historico_conversas[numero][-6:] if m.startswith("Cliente:")]
         mensagem_relevante = " ".join(ultimas).lower()
@@ -66,13 +69,15 @@ def responder():
         resposta.append({"message": texto})
         return jsonify({"replies": resposta})
 
-    if mensagem.strip() == "224":
+    # Gatilho do teste
+    if mensagem.strip() in ["224", "555", "91", "88", "98"]:
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         threading.Thread(target=agendar_mensagens, args=(numero,), daemon=True).start()
         time.sleep(4)
         resposta.append({"message": "⏱️ Seu teste dura *3 horas* para você conhecer os canais e a qualidade. Aproveite!"})
         return jsonify({"replies": resposta})
 
+    # Prompt para a IA
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
@@ -112,32 +117,26 @@ def responder():
 
     return jsonify({"replies": resposta})
 
+# Mensagens automáticas com correção
 def agendar_mensagens(numero):
-    time.sleep(5)
-    enviar_whatsapp(
-        numero,
-        "⚠️ Atenção ao digitar o login:\n"
-        "- *Respeite letras maiúsculas e minúsculas* (ex: I, l, O, 0)\n"
-        "- Verifique se o link do DNS começa com *http://* ou *https://* conforme o app\n\n"
-        "Se tiver qualquer dúvida, é só me chamar! ☺️"
-    )
+    def enviar(msg, atraso, destino):
+        time.sleep(atraso)
+        enviar_whatsapp(destino, msg)
 
-    time.sleep(1795)
-    enviar_whatsapp(numero, "⏱️ Deu certo o login? Conseguiu assistir direitinho? 💬")
+    mensagens = [
+        ("⚠️ Considere as *letras maiúsculas e minúsculas* ao digitar seu login.\nVerifique também se o link de DNS tem ou não 's' no http (http:// ou https://).", 5),
+        ("⏱️ Deu certo o login? Conseguiu assistir direitinho? 💬", 1800),
+        ("📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\nSe estiverem fechados agora, fique tranquilo: eles ativam automaticamente perto do horário. 😉", 3600),
+        ("🎥 Temos *4 opções de qualidade* para o mesmo conteúdo: SD, HD, FHD e 4K.\nSe algum canal estiver travando, podemos mudar a qualidade para melhorar a experiência! 😉", 5400),
+        ("⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\nFormas de pagamento:\nPIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\nSe quiser assinar, me avise! 📲", 10800)
+    ]
 
-    time.sleep(1800)
-    enviar_whatsapp(numero, "📢 Alguns canais como *Premiere, HBO Max, Disney+* só abrem minutos antes dos eventos ao vivo.\nSe estiverem fechados agora, fique tranquilo: eles ativam automaticamente perto do horário. ☺️")
+    for msg, delay in mensagens:
+        threading.Thread(target=enviar, args=(msg, delay, numero), daemon=True).start()
 
-    time.sleep(1800)
-    enviar_whatsapp(numero, "🎥 Temos *4 opções de qualidade* para o mesmo conteúdo: SD, HD, FHD e 4K.\nSe algum canal estiver travando, podemos mudar a qualidade para melhorar a experiência! ☺️")
-
-    time.sleep(5400)
-    enviar_whatsapp(numero, "⏳ Seu teste terminou! Espero que tenha gostado. 😄\n\n💰 Planos disponíveis:\n1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\nFormas de pagamento:\nPIX (CNPJ): 46.370.366/0001-97\n💳 Cartão: https://mpago.la/2Nsh3Fq\n\nSe quiser assinar, me avise! 📲")
-
+# Simula envio do WhatsApp
 def enviar_whatsapp(numero, mensagem):
     print(f"[Agendado para {numero}] {mensagem}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
-
