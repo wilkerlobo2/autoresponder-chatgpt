@@ -17,7 +17,7 @@ def responder():
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    # Mensagem de boas-vindas fixa
+    # Boas-vindas fixas
     if numero not in historico_conversas:
         historico_conversas[numero] = []
         boas_vindas = (
@@ -29,6 +29,16 @@ def responder():
 
     historico_conversas[numero].append(f"Cliente: {mensagem}")
     contexto = "\n".join(historico_conversas[numero][-15:])
+
+    # Verifica se o cliente já digitou um código antes
+    codigos_teste = ["224", "555", "91", "88", "871", "98"]
+    codigo_digitado = any(f"Cliente: {c}" in contexto for c in codigos_teste)
+    resposta_afirmativa = any(p in mensagem for p in ["deu certo", "acessou", "funcionou", "sim", "consegui", "tudo certo"])
+
+    if codigo_digitado and resposta_afirmativa:
+        texto = "Perfeito! Aproveite seu teste. 😊"
+        historico_conversas[numero].append(f"IA: {texto}")
+        return jsonify({"replies": [{"message": texto}]})
 
     # Regra especial para PC
     if any(p in mensagem for p in ["pc", "computador", "notebook", "windows", "macbook"]):
@@ -45,9 +55,7 @@ def responder():
         ultimas = [m for m in historico_conversas[numero][-6:] if m.startswith("Cliente:")]
         mensagem_relevante = " ".join(ultimas).lower()
 
-        if "xcloud" in mensagem_relevante:
-            codigo = "91"
-        elif "samsung" in mensagem_relevante:
+        if "xcloud" in mensagem_relevante or "samsung" in mensagem_relevante:
             codigo = "91"
         elif any(d in mensagem_relevante for d in ["tv box", "android", "xtream", "celular", "projetor"]):
             codigo = "555"
@@ -59,24 +67,26 @@ def responder():
             codigo = "98"
         elif "tv antiga" in mensagem_relevante or "smart stb" in mensagem_relevante:
             codigo = "88"
+        elif any(a in mensagem_relevante for a in ["duplecast", "smartone", "ott"]):
+            codigo = "871"
         else:
             codigo = "91"
 
-        texto = f"Digite **{codigo}** aqui na conversa para receber seu login. ☺️"
+        texto = f"Digite *{codigo}* aqui na conversa para receber seu login. 😉"
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
         return jsonify({"replies": resposta})
 
-    # Gatilho do teste
-    if mensagem.strip() in ["224", "555", "91", "88", "98"]:
+    # Gatilho de login automático
+    if mensagem.strip() in codigos_teste:
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         return jsonify({"replies": resposta})
 
-    # Prompt para a IA
+    # Prompt da IA com instruções atualizadas
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado como uma linha de produção. "
         "Use emojis criativos sempre que indicar um aplicativo. NÃO envie links de IPTV ou imagens.\n\n"
-        "🕒 Informe sempre que o teste gratuito dura *3 horas* — e não 24 horas.\n"
+        "🕒 Informe sempre que o teste gratuito dura *3 horas*.\n"
         "Se o cliente perguntar sobre valores ou preços, envie os planos:\n"
         "💰 Planos disponíveis:\n"
         "1 mês – R$ 26,00\n"
@@ -85,23 +95,24 @@ def responder():
         "6 meses – R$ 129,00\n"
         "1 ano – R$ 185,00\n\n"
         "💳 Formas de pagamento:\n"
-        "Pix (envie o CNPJ sozinho na próxima mensagem para facilitar cópia): 46.370.366/0001-97\n"
+        "Pix (envie o CNPJ sozinho): 46.370.366/0001-97\n"
         "Cartão: https://mpago.la/2Nsh3Fq\n\n"
-        "⚠️ Envie o Pix (CNPJ) sempre separado para facilitar a cópia.\n\n"
-        "Quando o cliente disser o aparelho (ex: TV LG, Roku, iPhone, Computador), diga QUAL app ele deve baixar e diga:\n"
+        "Quando o cliente disser o aparelho (TV LG, Roku, iPhone, etc), diga QUAL app ele deve baixar e diga:\n"
         "'Baixe o app [NOME] 📺👇📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
-        "Se for Samsung, sempre diga que o app é o Xcloud.\n"
-        "Se for LG, Roku ou Philco nova, também use o app Xcloud.\n"
-        "Se for Android, TV Box, projetor ou celular Android: Xtream IPTV Player.\n"
-        "Se o cliente perguntar por outros apps Android, indique também 9xtream, XCIPTV ou Vu IPTV Player.\n"
-        "Se for iPhone ou iOS: diga que é o app Smarters Player Lite (da App Store, ícone azul).\n"
-        "Se for computador, PC, notebook ou sistema Windows:\n"
-        "1️⃣ Diga: 'Para PC, você precisa baixar o app usando o link:'\n"
-        "2️⃣ Envie o link sozinho: https://7aps.online/iptvsmarters\n"
-        "3️⃣ Depois diga: 'Depois me avise quando abrir o link para que eu possa enviar o seu login.'\n"
-        "⚠️ NÃO diga que não precisa instalar app. O link é para *baixar o app para PC*.\n"
-        "⚠️ Só diga para digitar *224* DEPOIS que o cliente disser que abriu ou instalou.\n\n"
-        f"Histórico da conversa:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
+        "📱 Android: Xtream IPTV Player (ou 9xtream, XCIPTV, Vu IPTV)\n"
+        "📺 Samsung, LG, Roku, Philco nova: app Xcloud\n"
+        "📲 iPhone: Smarters Player Lite (ícone azul, App Store)\n"
+        "🖥️ PC: link de download: https://7aps.online/iptvsmarters\n"
+        "📸 Se o cliente disser que tem o Duplecast:\n"
+        "- Envie passo a passo: Start > Português > Brasil > Fuso horário -03 > Minha duplecast\n"
+        "- Peça foto do QR code de perto\n"
+        "- Após foto, diga para digitar 871\n"
+        "📸 Se já tem o Duplecast, pule os passos, peça a foto do QR\n"
+        "📸 Se for SmartOne, peça MAC ou foto da tela com MAC, depois peça para digitar 871\n"
+        "📸 Se for OTT Player, peça foto do QR, depois peça para digitar 871\n"
+        "❓ Se o cliente disser que não sabe a TV ou mandar foto da tela, peça a foto e aguarde atendimento humano\n"
+        "🔇 Se mandar áudio, diga que não pode interpretar, mas pode continuar normalmente\n\n"
+        f"Histórico:\n{contexto}\n\nMensagem mais recente: '{mensagem}'\n\nResponda:"
     )
 
     try:
@@ -114,8 +125,8 @@ def responder():
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
 
-        # Verifica se deve mandar o Pix separado
-        if "pix" in mensagem or "pagamento" in mensagem or "valor" in mensagem or "quanto" in mensagem or "plano" in mensagem:
+        # Pix separado, se mencionar pagamento
+        if any(p in mensagem for p in ["pix", "pagamento", "valor", "quanto", "plano"]):
             resposta.append({"message": "Pix (CNPJ): 46.370.366/0001-97"})
 
     except Exception as e:
