@@ -31,24 +31,25 @@ def responder():
     contexto = "\n".join(historico_conversas[numero][-15:])
 
     # Verifica se o cliente já digitou um código antes
-    codigos_teste = ["224", "555", "91", "88", "871", "98"]
+    codigos_teste = ["224", "555", "91", "88", "871", "98", "94"]
     codigo_digitado = any(f"Cliente: {c}" in contexto for c in codigos_teste)
     resposta_afirmativa = any(p in mensagem for p in ["deu certo", "acessou", "funcionou", "sim", "consegui", "tudo certo"])
+    resposta_negativa = any(p in mensagem for p in ["não", "nao", "n consegui", "não funcionou", "n deu certo"])
 
     if codigo_digitado and resposta_afirmativa:
         texto = "Perfeito! Aproveite seu teste. 😊"
         historico_conversas[numero].append(f"IA: {texto}")
         return jsonify({"replies": [{"message": texto}]})
 
-    # Regra especial para PC
-    if any(p in mensagem for p in ["pc", "computador", "notebook", "windows", "macbook"]):
-        texto_pc = (
-            "Para PC, você precisa baixar o app usando o link:\n"
-            "https://7aps.online/iptvsmarters\n\n"
-            "Depois me avise quando abrir o link para que eu possa enviar o seu login. ☺️"
+    # Novo: Se cliente disser que não conseguiu acessar APÓS digitar algum código de teste
+    if codigo_digitado and resposta_negativa:
+        texto = (
+            "Vamos resolver isso! Por favor, verifique se digitou os dados exatamente como enviados.\n\n"
+            "Preste atenção nas *letras maiúsculas e minúsculas*, e nos caracteres parecidos como *I (i maiúsculo)* e *l (L minúsculo)*, ou *O (letra)* e *0 (zero)*.\n\n"
+            "Me envie uma *foto da tela* mostrando como você está digitando para que eu possa te ajudar melhor. 📷"
         )
-        historico_conversas[numero].append(f"IA: {texto_pc}")
-        return jsonify({"replies": [{"message": texto_pc}]})
+        historico_conversas[numero].append(f"IA: {texto}")
+        return jsonify({"replies": [{"message": texto}]})
 
     # Detectar confirmação de instalação
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
@@ -89,20 +90,15 @@ def responder():
         "🕒 Informe sempre que o teste gratuito dura *3 horas*.\n"
         "Se o cliente perguntar sobre valores ou preços, envie os planos:\n"
         "💰 Planos disponíveis:\n"
-        "1 mês – R$ 26,00\n"
-        "2 meses – R$ 47,00\n"
-        "3 meses – R$ 68,00\n"
-        "6 meses – R$ 129,00\n"
-        "1 ano – R$ 185,00\n\n"
-        "💳 Formas de pagamento:\n"
-        "Pix (envie o CNPJ sozinho): 46.370.366/0001-97\n"
+        "1 mês – R$ 26,00\n2 meses – R$ 47,00\n3 meses – R$ 68,00\n6 meses – R$ 129,00\n1 ano – R$ 185,00\n\n"
+        "💳 Formas de pagamento:\nPix (envie o CNPJ sozinho): 46.370.366/0001-97\n"
         "Cartão: https://mpago.la/2Nsh3Fq\n\n"
         "Quando o cliente disser o aparelho (TV LG, Roku, iPhone, etc), diga QUAL app ele deve baixar e diga:\n"
         "'Baixe o app [NOME] 📺👇📲 para [DISPOSITIVO]! Me avise quando instalar para que eu envie o seu login.'\n\n"
         "📱 Android: Xtream IPTV Player (ou 9xtream, XCIPTV, Vu IPTV)\n"
         "📺 Samsung, LG, Roku, Philco nova: app Xcloud\n"
-        "📲 iPhone: Smarters Player Lite (ícone azul, App Store)\n"
-        "🖥️ PC: link de download: https://7aps.online/iptvsmarters\n"
+        "📲 iPhone: Smarters Player Lite (App Store)\n"
+        "🖥️ PC: https://7aps.online/iptvsmarters\n"
         "📸 Se o cliente disser que tem o Duplecast:\n"
         "- Envie passo a passo: Start > Português > Brasil > Fuso horário -03 > Minha duplecast\n"
         "- Peça foto do QR code de perto\n"
@@ -125,7 +121,6 @@ def responder():
         historico_conversas[numero].append(f"IA: {texto}")
         resposta.append({"message": texto})
 
-        # Pix separado, se mencionar pagamento
         if any(p in mensagem for p in ["pix", "pagamento", "valor", "quanto", "plano"]):
             resposta.append({"message": "Pix (CNPJ): 46.370.366/0001-97"})
 
