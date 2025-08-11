@@ -9,10 +9,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DELAY_MS = 500  # 0.5s entre mensagens
 
 def make_replies(blocks):
-    """
-    blocks: lista de strings (cada uma é um 'balão' separado).
-    retorna a estrutura com delay de 0.5s entre cada balão.
-    """
+    """Converte lista de balões em replies com delay de 0.5s."""
     replies = []
     for i, msg in enumerate(blocks):
         if i == 0:
@@ -29,8 +26,7 @@ MSG_BEM_VINDO = [
     "Me diga qual aparelho você quer usar (ex: TV LG, Samsung, Roku, Philips, Android, iPhone, PC…)."
 ]
 
-# ANDROID (inclui PHILIPS)
-ANDROID_HEAD = "📱 *ANDROID detectado* (inclui TVs Philips)."
+# ANDROID (inclui PHILIPS) — sem “detectado”
 ANDROID_PREF = "⬇️ BAIXE *Xtream IPTV Player* (preferencial)."
 ANDROID_ALT_TITLE = "✅ OUTRAS OPÇÕES (se preferir):"
 ANDROID_ALT_LIST = "• *9Xtream*\n• *XCIPTV*\n• *IPTV Stream Player*"
@@ -40,8 +36,7 @@ ANDROID_INSIST_2 = "Se ainda assim *não conseguiu*, aí sim tem *link direto*:"
 ANDROID_LINK = "🔗 http://xwkhb.info/axc\n(cole no navegador/Downloader/NTDOWN da sua TV Box/Android e o download inicia.)"
 ANDROID_MANUAL = "🔔 *AÇÃO MANUAL NECESSÁRIA*: cliente usará o link. Enviar login quando avisar."
 
-# XCLOUD (verde e preto)
-XCLOUD_DET = "📺 *TV compatível com Xcloud* detectada!"
+# XCLOUD (verde e preto) — sem “detectada”
 XCLOUD_PREF = "Use o *Xcloud (ícone verde e preto)* 🟩⬛ *(preferencial).*"
 XCLOUD_TESTE = "Instale e me avise para eu enviar seu login. ⏳ O teste gratuito dura *3 horas*."
 XCLOUD_ALT_TITLE = "Se preferir, alternativas na sua TV:"
@@ -56,7 +51,7 @@ PC_MSG = [
     "Depois me avise quando abrir pra eu enviar seu login. 🙂"
 ]
 
-# iPhone / iOS (mantemos referência breve)
+# iPhone / iOS
 IOS_MSG = [
     "🍏 *iPhone/iOS*",
     "Use o *Smarters Player Lite* (ícone azul, App Store).",
@@ -179,14 +174,16 @@ def responder():
         if s["ctx"] == "xcloud":
             blocks = [XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
             return jsonify({"replies": make_replies(blocks)})
-        return jsonify({"replies": make_replies(["Me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) que te passo as opções certinhas. 😉"])})
+        return jsonify({"replies": make_replies(
+            ["Me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) que te passo as opções certinhas. 😉"]
+        )})
 
     # ===== fluxos determinísticos =====
 
-    # ANDROID (inclui Philips)
+    # ANDROID (inclui Philips) — sem o balão “detectado”
     if any(w in m for w in KEY_ANDROID):
         s["ctx"] = "android"
-        blocks = [ANDROID_HEAD, ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
+        blocks = [ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
         return jsonify({"replies": make_replies(blocks)})
 
     # insistiu que não achou / quer link – só Android
@@ -195,12 +192,14 @@ def responder():
             blocks = [ANDROID_INSIST_1, ANDROID_INSIST_2, ANDROID_LINK, ANDROID_MANUAL]
             return jsonify({"replies": make_replies(blocks)})
         else:
-            return jsonify({"replies": make_replies(["O link é para *Android*. Seu aparelho é Android? Se for, te passo agora o passo a passo. 😉"])})
+            return jsonify({"replies": make_replies(
+                ["O link é para *Android*. Seu aparelho é Android? Se for, te passo agora o passo a passo. 😉"]
+            )})
 
-    # TVs que usam Xcloud
+    # TVs que usam Xcloud — sem o balão “detectada”
     if any(w in m for w in KEY_XCLOUD_DEVICES):
         s["ctx"] = "xcloud"
-        blocks = [XCLOUD_DET, XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
+        blocks = [XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
         return jsonify({"replies": make_replies(blocks)})
 
     # PC
@@ -227,7 +226,7 @@ def responder():
         s["ctx"] = "xcloud"
         return jsonify({"replies": make_replies(OTT_STEPS)})
 
-    # cliente digitou um dos códigos (AutoResponder cuida do envio do login)
+    # cliente digitou um dos códigos
     if m.strip() in CODIGOS_TESTE:
         return jsonify({"replies": make_replies(["🔓 Gerando seu login de teste, só um instante..."])})
 
@@ -236,7 +235,7 @@ def responder():
         replies = make_replies(PLANOS) + make_replies(PAGAMENTO) + make_replies(PIX_SOLO)
         return jsonify({"replies": replies})
 
-    # ===== fallback com IA (curto, mas respeitando regras) =====
+    # ===== fallback com IA =====
     prompt = (
         "Você é um atendente de IPTV no WhatsApp. Responda curto, objetivo e com emojis.\n"
         "Nunca recomende apps fora desta lista: Xtream IPTV Player, 9Xtream, XCIPTV, IPTV Stream Player, "
@@ -249,7 +248,6 @@ def responder():
         f"Mensagem: '{mensagem}'\n"
         "Responda em 1–2 frases."
     )
-
     try:
         result = client.chat.completions.create(
             model="gpt-4o",
