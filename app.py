@@ -12,10 +12,7 @@ def make_replies(blocks):
     """Converte lista de balões em replies com delay de 0.5s."""
     replies = []
     for i, msg in enumerate(blocks):
-        if i == 0:
-            replies.append({"message": msg})
-        else:
-            replies.append({"message": msg, "delay": DELAY_MS})
+        replies.append({"message": msg} if i == 0 else {"message": msg, "delay": DELAY_MS})
     return replies
 
 # ========= constantes de texto =========
@@ -130,6 +127,11 @@ KEY_LINK_ALT = {
 KEY_OUTRO = {"tem outro","quero outro","outro app","tem mais algum","tem mais opções","tem mais uma opção","não tem esse","nao tem esse"}
 KEY_PAG = {"pix","pagamento","valor","quanto","plano","planos","preço","preco"}
 
+# NOVO: confirmação de instalação
+KEY_INSTALLED = {
+    "instalei","baixei","pronto","feito","já instalei","ja instalei","abri","abriu","aberto","instalado"
+}
+
 # sessões (histórico + contexto)
 sessions = {}  # numero -> {"msgs": [...], "ctx": None}
 
@@ -169,38 +171,52 @@ def responder():
     # “tem outro?”
     if any(k in m for k in KEY_OUTRO):
         if s["ctx"] == "android":
-            blocks = [ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
-            return jsonify({"replies": make_replies(blocks)})
+            return jsonify({"replies": make_replies([ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST])})
         if s["ctx"] == "xcloud":
-            blocks = [XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
-            return jsonify({"replies": make_replies(blocks)})
+            return jsonify({"replies": make_replies([XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP])})
         return jsonify({"replies": make_replies(
             ["Me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) que te passo as opções certinhas. 😉"]
         )})
 
+    # ===== CONFIRMOU INSTALAÇÃO → MANDAR CÓDIGO =====
+    if any(w in m for w in KEY_INSTALLED):
+        ctx = s["ctx"]
+        code = None
+        if ctx == "android":
+            code = "555"
+        elif ctx == "xcloud":
+            code = "91"
+        elif ctx in ("ios", "pc"):
+            code = "224"
+        if code:
+            return jsonify({"replies": make_replies([
+                "Ótimo! 🙌",
+                f"Digite *{code}* aqui na conversa para eu gerar seu login de teste. 😉"
+            ])})
+        # sem contexto: pergunta o aparelho
+        return jsonify({"replies": make_replies([
+            "Perfeito! Só me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) pra eu te passar o código certo. 🙂"
+        ])})
+
     # ===== fluxos determinísticos =====
 
-    # ANDROID (inclui Philips) — sem o balão “detectado”
+    # ANDROID (inclui Philips)
     if any(w in m for w in KEY_ANDROID):
         s["ctx"] = "android"
-        blocks = [ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
-        return jsonify({"replies": make_replies(blocks)})
+        return jsonify({"replies": make_replies([ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST])})
 
     # insistiu que não achou / quer link – só Android
     if any(w in m for w in KEY_LINK_ALT):
-        if s["ctx"] == "android" or "android" in m or "philips" in m or "tv box" in m or "celular" in m:
-            blocks = [ANDROID_INSIST_1, ANDROID_INSIST_2, ANDROID_LINK, ANDROID_MANUAL]
-            return jsonify({"replies": make_replies(blocks)})
-        else:
-            return jsonify({"replies": make_replies(
-                ["O link é para *Android*. Seu aparelho é Android? Se for, te passo agora o passo a passo. 😉"]
-            )})
+        if s["ctx"] == "android" or any(k in m for k in ("android","philips","tv box","celular")):
+            return jsonify({"replies": make_replies([ANDROID_INSIST_1, ANDROID_INSIST_2, ANDROID_LINK, ANDROID_MANUAL])})
+        return jsonify({"replies": make_replies(
+            ["O link é para *Android*. Seu aparelho é Android? Se for, te passo agora o passo a passo. 😉"]
+        )})
 
-    # TVs que usam Xcloud — sem o balão “detectada”
+    # TVs que usam Xcloud
     if any(w in m for w in KEY_XCLOUD_DEVICES):
         s["ctx"] = "xcloud"
-        blocks = [XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
-        return jsonify({"replies": make_replies(blocks)})
+        return jsonify({"replies": make_replies([XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP])})
 
     # PC
     if any(w in m for w in KEY_PC):
