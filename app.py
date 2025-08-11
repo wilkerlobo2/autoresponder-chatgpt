@@ -63,25 +63,34 @@ def responder():
         historico_conversas[numero].append(f"IA: {texto_foto}")
         return jsonify({"replies": [{"message": texto_foto}]})
 
-    # ======== RESPOSTAS DETERMINÍSTICAS (evita variações da IA) ========
+    # ======== RESPOSTAS DETERMINÍSTICAS ========
 
-    # ANDROID (inclui Philips)
+    # Android (inclui Philips) – primeira resposta SEM link
     if any(word in mensagem for word in ["android", "tv box", "projetor", "celular android", "celular", "philips"]):
-        texto_android_1 = (
+        texto_android = (
             "Para Android, baixe o app **Xtream IPTV Player** 📺👇📲 (recomendado).\n"
-            "Também pode usar: *9Xtream*, *XCIPTV* ou *Vu IPTV Player*."
+            "Também pode usar: *9Xtream*, *XCIPTV* ou *Vu IPTV Player*.\n"
+            "Me avise quando instalar para eu enviar seu login."
         )
-        texto_android_2 = (
-            "Se não conseguir baixar da loja, você consegue baixar por link? (Chrome/Downloader/NTDOWN)\n"
-            "Use este link: http://xwkhb.info/axc\n"
-            "Depois que abrir o app, me avise — o *atendente humano* vai enviar seu login.\n"
-            "🚨 **ATENDIMENTO HUMANO NECESSÁRIO**: cliente entrou por link, enviar login quando avisar."
-        )
-        historico_conversas[numero].append(f"IA: {texto_android_1}")
-        historico_conversas[numero].append(f"IA: {texto_android_2}")
-        return jsonify({"replies": [{"message": texto_android_1}, {"message": texto_android_2}]})
+        historico_conversas[numero].append(f"IA: {texto_android}")
+        return jsonify({"replies": [{"message": texto_android}]})
 
-    # DISPOSITIVOS DE Xcloud (Samsung, LG, Roku, Philco nova) – com alternativas
+    # Se o cliente disser que NÃO consegue baixar da loja (aí sim mandar link)
+    frases_sem_baixar = [
+        "não consigo baixar", "nao consigo baixar", "não acho na loja", "nao acho na loja",
+        "não encontra na loja", "nao encontra na loja", "não tem na loja", "nao tem na loja",
+        "tem link", "manda o link", "baixar por link", "link alternativo", "apk", "aptoide", "ntdown", "downloader"
+    ]
+    if any(f in mensagem for f in frases_sem_baixar):
+        texto_link = (
+            "🔔 **AÇÃO MANUAL NECESSÁRIA**: cliente precisa de link alternativo.\n"
+            "Baixe por link (Chrome/Downloader/NTDOWN): http://xwkhb.info/axc\n"
+            "Depois que abrir o app, me avise para eu enviar o seu login."
+        )
+        historico_conversas[numero].append(f"IA: {texto_link}")
+        return jsonify({"replies": [{"message": texto_link}]})
+
+    # Dispositivos de Xcloud (Samsung, LG, Roku, Philco nova) – com alternativas
     if any(word in mensagem for word in ["samsung", "lg", "roku", "philco nova", "xcloud"]):
         texto_xcloud = (
             "Para sua TV, use o **Xcloud (ícone verde e preto)** 📺✨ *preferencial*.\n"
@@ -103,7 +112,7 @@ def responder():
         historico_conversas[numero].append(f"IA: {texto_pc}")
         return jsonify({"replies": [{"message": texto_pc}]})
 
-    # Detectar confirmação de instalação (decidir código por contexto recente)
+    # Detectar confirmação de instalação (decide o código pelo contexto)
     if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
         ultimas = [m for m in historico_conversas[numero][-6:] if m.startswith("Cliente:")]
         mensagem_relevante = " ".join(ultimas).lower()
@@ -135,10 +144,10 @@ def responder():
         resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
         return jsonify({"replies": resposta})
 
-    # Prompt da IA (para os demais casos)
+    # Prompt da IA (casos gerais)
     prompt = (
         "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado. "
-        "Use emojis, mas evite textos gigantes: divida em mensagens curtas. "
+        "Use emojis e evite textos gigantes: divida em mensagens curtas. "
         "O teste gratuito dura **3 horas**.\n\n"
         "Se o cliente pedir valores, envie os planos:\n"
         "1 mês – R$ 26,00 | 2 meses – R$ 47,00 | 3 meses – R$ 68,00 | 6 meses – R$ 129,00 | 1 ano – R$ 185,00.\n"
@@ -148,7 +157,7 @@ def responder():
         "- SmartOne: peça **MAC** ou **foto com o MAC**; depois **871**.\n"
         "- OTT Player: peça **foto do QR**; depois **871**.\n"
         "- Se enviar foto/QR/MAC, diga que não dá para identificar imagem e pergunte **qual aplicativo** está usando; siga o fluxo correspondente.\n"
-        "- Se não souber a TV ou enviar foto da tela: diga '🚨 ATENDIMENTO HUMANO NECESSÁRIO' e que um humano vai analisar.\n"
+        "- Se não souber a TV ou enviar foto da tela: diga '**🔔 AÇÃO MANUAL NECESSÁRIA**: vou analisar a foto e te direcionar certinho.'\n"
         "- Se mandar áudio: diga que não consegue interpretar e continue por texto.\n\n"
         f"Histórico (últimas):\n{contexto}\n\n"
         f"Mensagem mais recente: '{mensagem}'\n\n"
