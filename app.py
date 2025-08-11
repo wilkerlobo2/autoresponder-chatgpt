@@ -4,14 +4,118 @@ import os
 
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ===================== MENSAGENS FIXAS / CONSTANTES =====================
+
+MSG_BEM_VINDO = (
+    "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
+    "Vamos começar seu teste gratuito?\n\n"
+    "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
+)
+
+MSG_ANDROID = (
+    "Para Android, baixe o app **Xtream IPTV Player** 📺👇📲 *(recomendado)*.\n"
+    "Também pode usar: *9Xtream*, *XCIPTV* ou *Vu IPTV Player*.\n"
+    "Me avise quando instalar para eu enviar seu login."
+)
+
+MSG_ANDROID_LINK = (
+    "🔔 **AÇÃO MANUAL NECESSÁRIA**: cliente precisa de link alternativo.\n"
+    "Não tem problema! Você consegue baixar por link (Chrome/Downloader/NTDOWN)?\n"
+    "Use este link: http://xwkhb.info/axc\n"
+    "Assim que abrir o app, me avise para eu enviar seu login. ⏳"
+)
+
+MSG_XCLOUD = (
+    "Para sua TV, use o **Xcloud (ícone verde e preto)** 📺🟩⬛ *(preferencial)*.\n"
+    "Se preferir, também dá para usar: *OTT Player*, *Duplecast* ou *SmartOne*.\n"
+    "Instale e me avise para eu enviar seu login. O teste gratuito dura **3 horas**. ⏱️"
+)
+
+MSG_PC = (
+    "Para PC/Windows, baixe o app por este link:\n"
+    "https://7aps.online/iptvsmarters\n\n"
+    "Depois me avise quando abrir o link para que eu possa enviar o seu login. ☺️"
+)
+
+MSG_POS_LOGIN_OK = "Perfeito! Aproveite seu teste. 😊"
+
+MSG_POS_LOGIN_FALHOU = (
+    "Vamos resolver isso! Verifique se digitou *exatamente* como enviado.\n"
+    "Atenção às *letras maiúsculas e minúsculas* e aos caracteres parecidos (*I* vs *l*, *O* vs *0*).\n"
+    "Pode me enviar uma *foto da tela* mostrando como você está digitando? 📷"
+)
+
+MSG_FOTO_QUAL_APP = (
+    "Entendi a foto/QR/MAC! Como não consigo identificar imagens aqui, me diga por favor **qual aplicativo** você está usando:\n"
+    "*Duplecast*, *SmartOne*, *OTT Player*, *Xcloud (ícone verde e preto)*, *Xtream IPTV Player*, *9Xtream*, *XCIPTV* ou *Vu IPTV Player*? 😉"
+)
+
+MSG_DUBLECAST_PASSO = (
+    "Certo! No *Duplecast*, siga:\n"
+    "Start ➜ Português ➜ Brasil ➜ Fuso horário *-03* ➜ *Minha duplecast*.\n"
+    "Depois, envie uma *foto do QR code* de perto. Em seguida, digite **871** aqui na conversa para eu gerar o teste (link M3U)."
+)
+
+MSG_DUBLECAST_JA_TEM = (
+    "Perfeito! Se você *já tem* o Duplecast, envie uma *foto do QR code* de perto e depois digite **871** aqui na conversa."
+)
+
+MSG_SMARTONE = (
+    "No *SmartOne*, me envie o **MAC** (ou uma *foto da tela com o MAC*). Depois disso, digite **871** aqui para eu gerar o teste."
+)
+
+MSG_OTTPLAYER = (
+    "No *OTT Player*, me envie uma *foto do QR code* de perto. Em seguida, digite **871** aqui para eu gerar o teste."
+)
+
+MSG_VALORES = (
+    "💰 *Planos disponíveis*:\n"
+    "1 mês – R$ 26,00 | 2 meses – R$ 47,00 | 3 meses – R$ 68,00 | 6 meses – R$ 129,00 | 1 ano – R$ 185,00"
+)
+
+MSG_PAGAMENTO = (
+    "💳 *Formas de pagamento*: Pix ou Cartão.\n"
+    "Cartão (link seguro): https://mpago.la/2Nsh3Fq\n"
+    "Vou te mandar o *Pix (CNPJ)* em uma mensagem separada para facilitar a cópia."
+)
+
+MSG_PIX_SOZINHO = "Pix (CNPJ): 46.370.366/0001-97"
+
+MSG_AUDIO = (
+    "Ops! 😅 Por aqui eu não consigo interpretar *áudios*. Pode me mandar por *texto*? Eu continuo te ajudando normalmente!"
+)
+
+MSG_ATENCAO_MANUAL = "🔔 **AÇÃO MANUAL NECESSÁRIA**: analisar e enviar login/dados quando o cliente confirmar."
+
+# Palavras-chave/agrupamentos
+CODIGOS_TESTE = {"224", "555", "91", "88", "871", "98", "94"}
+KEY_OK = {"deu certo", "acessou", "funcionou", "sim", "consegui", "tudo certo", "abriu", "logou"}
+KEY_NOK = {"não", "nao", "n consegui", "não funcionou", "nao funcionou", "n deu certo", "nao deu certo", "não deu certo"}
+KEY_FOTO = {"foto", "qrcode", "qr code", "qr-code", "qr", "mac:", "endereço mac", "endereco mac", "mostrei a tela"}
+KEY_ANDROID = {"android", "tv box", "projetor", "celular android", "celular", "philips"}
+KEY_XCLOUD_DEVICES = {"samsung", "lg", "roku", "philco nova", "xcloud"}
+KEY_PC = {"pc", "computador", "notebook", "windows", "macbook"}
+KEY_LINK_ALT = {
+    "não consigo baixar", "nao consigo baixar", "não acho na loja", "nao acho na loja",
+    "não encontra na loja", "nao encontra na loja", "não tem na loja", "nao tem na loja",
+    "tem link", "manda o link", "baixar por link", "link alternativo", "apk", "aptoide", "ntdown", "downloader"
+}
+KEY_PAG = {"pix", "pagamento", "valor", "quanto", "plano", "planos", "preço", "preco"}
+
+# Histórico por número
 historico_conversas = {}
+
+
+# ===================== APP =====================
 
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
     query = data.get("query", {})
     numero = query.get("sender", "").strip()
-    mensagem = query.get("message", "").strip().lower()
+    mensagem = query.get("message", "").strip()
+    mensagem_lc = mensagem.lower()
     resposta = []
 
     if not numero or not mensagem:
@@ -20,168 +124,91 @@ def responder():
     # Boas-vindas fixas
     if numero not in historico_conversas:
         historico_conversas[numero] = []
-        boas_vindas = (
-            "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-            "Vamos começar seu teste gratuito?\n\n"
-            "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-        )
-        return jsonify({"replies": [{"message": boas_vindas}]})
+        return jsonify({"replies": [{"message": MSG_BEM_VINDO}]})
 
-    # Guarda mensagem do cliente no histórico
-    historico_conversas[numero].append(f"Cliente: {mensagem}")
+    # Guarda no histórico (somente última parte em minúsculas para regras)
+    historico_conversas[numero].append(f"Cliente: {mensagem_lc}")
     contexto = "\n".join(historico_conversas[numero][-15:])
 
-    # Códigos de teste reconhecidos
-    codigos_teste = ["224", "555", "91", "88", "871", "98", "94"]
+    # --- Pós-login: confirmou que funcionou
+    if any(f"Cliente: {c}" in contexto for c in CODIGOS_TESTE) and any(k in mensagem_lc for k in KEY_OK):
+        return jsonify({"replies": [{"message": MSG_POS_LOGIN_OK}]})
 
-    # Se o cliente já digitou um código e agora confirmou que funcionou
-    codigo_digitado = any(f"Cliente: {c}" in contexto for c in codigos_teste)
-    resposta_afirmativa = any(p in mensagem for p in ["deu certo", "acessou", "funcionou", "sim", "consegui", "tudo certo"])
-    resposta_negativa = any(p in mensagem for p in ["não", "nao", "n consegui", "não funcionou", "n deu certo", "nao deu certo"])
+    # --- Pós-login: disse que NÃO conseguiu
+    if any(f"Cliente: {c}" in contexto for c in CODIGOS_TESTE) and any(k in mensagem_lc for k in KEY_NOK):
+        return jsonify({"replies": [{"message": MSG_POS_LOGIN_FALHOU}]})
 
-    if codigo_digitado and resposta_afirmativa:
-        texto = "Perfeito! Aproveite seu teste. 😊"
-        historico_conversas[numero].append(f"IA: {texto}")
-        return jsonify({"replies": [{"message": texto}]})
+    # --- Foto/QR/MAC: perguntar qual app
+    if any(k in mensagem_lc for k in KEY_FOTO):
+        return jsonify({"replies": [{"message": MSG_FOTO_QUAL_APP}]})
 
-    # Se o cliente disse que não conseguiu acessar após um código
-    if codigo_digitado and resposta_negativa:
-        texto = (
-            "Vamos resolver isso! Verifique se digitou *exatamente* como enviado.\n"
-            "Atenção às *letras maiúsculas e minúsculas* e aos caracteres parecidos (*I* vs *l*, *O* vs *0*).\n"
-            "Pode me enviar uma *foto da tela* mostrando como você está digitando? 📷"
-        )
-        historico_conversas[numero].append(f"IA: {texto}")
-        return jsonify({"replies": [{"message": texto}]})
+    # --- Áudio
+    if "áudio" in mensagem_lc or "audio" in mensagem_lc:
+        return jsonify({"replies": [{"message": MSG_AUDIO}]})
 
-    # FOTO / QR / MAC: pedir qual app foi baixado (não dá pra identificar imagem)
-    if any(k in mensagem for k in ["foto", "qrcode", "qr code", "qr-code", "qr", "mac:", "endereço mac", "endereco mac", "mostrei a tela"]):
-        texto_foto = (
-            "Entendi! Como não consigo identificar imagens aqui, me diga por favor **qual aplicativo você está usando**: "
-            "*Duplecast*, *SmartOne*, *OTT Player*, *Xcloud (ícone verde e preto)*, *Xtream IPTV Player*, *9Xtream*, *XCIPTV* ou *Vu IPTV Player*? 😉"
-        )
-        historico_conversas[numero].append(f"IA: {texto_foto}")
-        return jsonify({"replies": [{"message": texto_foto}]})
+    # ===================== RESPOSTAS DETERMINÍSTICAS =====================
 
-    # ======== RESPOSTAS DETERMINÍSTICAS ========
+    # Android (inclui Philips) – primeiro passo SEM link
+    if any(word in mensagem_lc for word in KEY_ANDROID):
+        return jsonify({"replies": [{"message": MSG_ANDROID}]})
 
-    # Android (inclui Philips) – primeira resposta SEM link
-    if any(word in mensagem for word in ["android", "tv box", "projetor", "celular android", "celular", "philips"]):
-        texto_android = (
-            "Para Android, baixe o app **Xtream IPTV Player** 📺👇📲 (recomendado).\n"
-            "Também pode usar: *9Xtream*, *XCIPTV* ou *Vu IPTV Player*.\n"
-            "Me avise quando instalar para eu enviar seu login."
-        )
-        historico_conversas[numero].append(f"IA: {texto_android}")
-        return jsonify({"replies": [{"message": texto_android}]})
+    # Se o cliente disser que não consegue baixar (aí sim o link alternativo)
+    if any(f in mensagem_lc for f in KEY_LINK_ALT):
+        return jsonify({"replies": [{"message": MSG_ANDROID_LINK}, {"message": MSG_ATENCAO_MANUAL} ]})
 
-    # Se o cliente disser que NÃO consegue baixar da loja (aí sim mandar link)
-    frases_sem_baixar = [
-        "não consigo baixar", "nao consigo baixar", "não acho na loja", "nao acho na loja",
-        "não encontra na loja", "nao encontra na loja", "não tem na loja", "nao tem na loja",
-        "tem link", "manda o link", "baixar por link", "link alternativo", "apk", "aptoide", "ntdown", "downloader"
-    ]
-    if any(f in mensagem for f in frases_sem_baixar):
-        texto_link = (
-            "🔔 **AÇÃO MANUAL NECESSÁRIA**: cliente precisa de link alternativo.\n"
-            "Baixe por link (Chrome/Downloader/NTDOWN): http://xwkhb.info/axc\n"
-            "Depois que abrir o app, me avise para eu enviar o seu login."
-        )
-        historico_conversas[numero].append(f"IA: {texto_link}")
-        return jsonify({"replies": [{"message": texto_link}]})
+    # Dispositivos com Xcloud (verde e preto) – com alternativas
+    if any(word in mensagem_lc for word in KEY_XCLOUD_DEVICES):
+        return jsonify({"replies": [{"message": MSG_XCLOUD}]})
 
-    # Dispositivos de Xcloud (Samsung, LG, Roku, Philco nova) – com alternativas
-    if any(word in mensagem for word in ["samsung", "lg", "roku", "philco nova", "xcloud"]):
-        texto_xcloud = (
-            "Para sua TV, use o **Xcloud (ícone verde e preto)** 📺✨ *preferencial*.\n"
-            "Se preferir, alternativas: *OTT Player*, *Duplecast* ou *SmartOne*.\n"
-            "Instale e me avise para eu enviar seu login. Lembre-se: o teste gratuito dura **3 horas**."
-        )
-        historico_conversas[numero].append(f"IA: {texto_xcloud}")
-        return jsonify({"replies": [{"message": texto_xcloud}]})
+    # PC / Windows
+    if any(p in mensagem_lc for p in KEY_PC):
+        return jsonify({"replies": [{"message": MSG_PC}]})
 
-    # ======== OUTRAS REGRAS ========
+    # Cliente mencionou explicitamente “duplecast / smartone / ott player”
+    if "duplecast" in mensagem_lc:
+        return jsonify({"replies": [{"message": MSG_DUBLECAST_PASSO}]})
+    if "smartone" in mensagem_lc or "smart one" in mensagem_lc:
+        return jsonify({"replies": [{"message": MSG_SMARTONE}]})
+    if "ott player" in mensagem_lc or "ottplayer" in mensagem_lc:
+        return jsonify({"replies": [{"message": MSG_OTTPLAYER}]})
+    if "já tenho duplecast" in mensagem_lc or "ja tenho duplecast" in mensagem_lc:
+        return jsonify({"replies": [{"message": MSG_DUBLECAST_JA_TEM}]})
 
-    # Regra especial para PC (link de download)
-    if any(p in mensagem for p in ["pc", "computador", "notebook", "windows", "macbook"]):
-        texto_pc = (
-            "Para PC, você precisa baixar o app usando o link:\n"
-            "https://7aps.online/iptvsmarters\n\n"
-            "Depois me avise quando abrir o link para que eu possa enviar o seu login. ☺️"
-        )
-        historico_conversas[numero].append(f"IA: {texto_pc}")
-        return jsonify({"replies": [{"message": texto_pc}]})
+    # --- Se cliente digitar um código de teste (AutoResponder cuidará do login)
+    if mensagem_lc.strip() in CODIGOS_TESTE:
+        return jsonify({"replies": [{"message": "🔓 Gerando seu login de teste, só um instante..."}]})
 
-    # Detectar confirmação de instalação (decide o código pelo contexto)
-    if any(p in mensagem for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
-        ultimas = [m for m in historico_conversas[numero][-6:] if m.startswith("Cliente:")]
-        mensagem_relevante = " ".join(ultimas).lower()
+    # --- Planos e pagamento
+    if any(k in mensagem_lc for k in KEY_PAG):
+        return jsonify({"replies": [{"message": MSG_VALORES}, {"message": MSG_PAGAMENTO}, {"message": MSG_PIX_SOZINHO}]})
 
-        if ("xcloud" in mensagem_relevante) or any(d in mensagem_relevante for d in ["samsung", "lg", "roku", "philco nova"]):
-            codigo = "91"
-        elif any(app in mensagem_relevante for app in ["xtream", "9xtream", "xciptv", "vu iptv", "android", "tv box", "celular", "projetor", "philips"]):
-            codigo = "555"
-        elif any(d in mensagem_relevante for d in ["iphone", "ios"]):
-            codigo = "224"
-        elif any(d in mensagem_relevante for d in ["computador", "pc", "notebook", "macbook", "windows"]):
-            codigo = "224"
-        elif "philco antiga" in mensagem_relevante:
-            codigo = "98"
-        elif "tv antiga" in mensagem_relevante or "smart stb" in mensagem_relevante:
-            codigo = "88"
-        elif any(a in mensagem_relevante for a in ["duplecast", "smartone", "ott"]):
-            codigo = "871"
-        else:
-            codigo = "91"
-
-        texto = f"Digite *{codigo}* aqui na conversa para receber seu login. 😉"
-        historico_conversas[numero].append(f"IA: {texto}")
-        resposta.append({"message": texto})
-        return jsonify({"replies": resposta})
-
-    # Gatilho se o cliente digita um código de teste
-    if mensagem.strip() in codigos_teste:
-        resposta.append({"message": "🔓 Gerando seu login de teste, só um instante..."})
-        return jsonify({"replies": resposta})
-
-    # Prompt da IA (casos gerais)
+    # ===================== FALLBACK COM IA (casos gerais) =====================
+    # IA com instruções rígidas para não inventar apps
     prompt = (
-        "Você é um atendente de IPTV via WhatsApp. Seja direto, simples e educado. "
-        "Use emojis e evite textos gigantes: divida em mensagens curtas. "
-        "O teste gratuito dura **3 horas**.\n\n"
-        "Se o cliente pedir valores, envie os planos:\n"
-        "1 mês – R$ 26,00 | 2 meses – R$ 47,00 | 3 meses – R$ 68,00 | 6 meses – R$ 129,00 | 1 ano – R$ 185,00.\n"
-        "Pagamento: Pix (envie o CNPJ sozinho na mensagem seguinte) ou Cartão: https://mpago.la/2Nsh3Fq.\n\n"
-        "Fluxos especiais:\n"
-        "- Duplecast: Start > Português > Brasil > Fuso -03 > Minha duplecast; peça **foto do QR**; depois peça digitar **871**.\n"
-        "- SmartOne: peça **MAC** ou **foto com o MAC**; depois **871**.\n"
-        "- OTT Player: peça **foto do QR**; depois **871**.\n"
-        "- Se enviar foto/QR/MAC, diga que não dá para identificar imagem e pergunte **qual aplicativo** está usando; siga o fluxo correspondente.\n"
-        "- Se não souber a TV ou enviar foto da tela: diga '**🔔 AÇÃO MANUAL NECESSÁRIA**: vou analisar a foto e te direcionar certinho.'\n"
-        "- Se mandar áudio: diga que não consegue interpretar e continue por texto.\n\n"
-        f"Histórico (últimas):\n{contexto}\n\n"
-        f"Mensagem mais recente: '{mensagem}'\n\n"
-        "Responda agora seguindo TODAS as instruções."
+        "Você é um atendente de IPTV no WhatsApp. Responda de forma curta, objetiva e educada. "
+        "Nunca recomende aplicativos fora desta lista: Xtream IPTV Player, 9Xtream, XCIPTV, Vu IPTV Player, "
+        "Xcloud (ícone verde e preto), OTT Player, Duplecast, SmartOne, Smarters Player Lite (iOS) e IPTV Smarters para PC.\n"
+        "Teste gratuito sempre **3 horas**. Se falar sobre valores, enviar planos e depois Pix em mensagem separada.\n"
+        "Se o cliente enviar foto/QR/MAC, diga que não identifica imagens e pergunte qual aplicativo está usando.\n"
+        "Se pedir ajuda por link alternativo para Android, use exatamente: http://xwkhb.info/axc e a frase '🔔 AÇÃO MANUAL NECESSÁRIA'.\n"
+        "Se mandar áudio, diga que não pode interpretar e peça texto.\n\n"
+        f"Histórico recente:\n{contexto}\n\n"
+        f"Mensagem do cliente: '{mensagem}'\n"
+        "Responda agora seguindo essas regras estritas."
     )
 
     try:
-        resposta_ia = client.chat.completions.create(
+        result = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.6
+            temperature=0.4
         )
-        texto = resposta_ia.choices[0].message.content.strip()
-        historico_conversas[numero].append(f"IA: {texto}")
-        resposta.append({"message": texto})
-
-        # Pix separado se mencionar pagamento/valor/planos
-        if any(p in mensagem for p in ["pix", "pagamento", "valor", "quanto", "plano", "planos", "preço", "preco"]):
-            resposta.append({"message": "Pix (CNPJ): 46.370.366/0001-97"})
-
+        texto = result.choices[0].message.content.strip()
+        return jsonify({"replies": [{"message": texto}]})
     except Exception as e:
-        resposta.append({"message": f"⚠️ Erro ao gerar resposta: {str(e)}"})
+        return jsonify({"replies": [{"message": f"⚠️ Erro ao gerar resposta: {str(e)}"}]})
 
-    return jsonify({"replies": resposta})
+# =======================================================================
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
