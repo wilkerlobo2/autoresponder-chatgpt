@@ -12,7 +12,10 @@ def make_replies(blocks):
     """Converte lista de balões em replies com delay de 0.5s."""
     replies = []
     for i, msg in enumerate(blocks):
-        replies.append({"message": msg} if i == 0 else {"message": msg, "delay": DELAY_MS})
+        if i == 0:
+            replies.append({"message": msg})
+        else:
+            replies.append({"message": msg, "delay": DELAY_MS})
     return replies
 
 # ========= constantes de texto =========
@@ -126,11 +129,7 @@ KEY_LINK_ALT = {
 }
 KEY_OUTRO = {"tem outro","quero outro","outro app","tem mais algum","tem mais opções","tem mais uma opção","não tem esse","nao tem esse"}
 KEY_PAG = {"pix","pagamento","valor","quanto","plano","planos","preço","preco"}
-
-# NOVO: confirmação de instalação
-KEY_INSTALLED = {
-    "instalei","baixei","pronto","feito","já instalei","ja instalei","abri","abriu","aberto","instalado"
-}
+KEY_CONFIRM = {"instalei","baixei","pronto","feito","já instalei","ja instalei","abri","entrei","configurei"}
 
 # sessões (histórico + contexto)
 sessions = {}  # numero -> {"msgs": [...], "ctx": None}
@@ -171,52 +170,38 @@ def responder():
     # “tem outro?”
     if any(k in m for k in KEY_OUTRO):
         if s["ctx"] == "android":
-            return jsonify({"replies": make_replies([ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST])})
+            blocks = [ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
+            return jsonify({"replies": make_replies(blocks)})
         if s["ctx"] == "xcloud":
-            return jsonify({"replies": make_replies([XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP])})
+            blocks = [XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
+            return jsonify({"replies": make_replies(blocks)})
         return jsonify({"replies": make_replies(
             ["Me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) que te passo as opções certinhas. 😉"]
         )})
 
-    # ===== CONFIRMOU INSTALAÇÃO → MANDAR CÓDIGO =====
-    if any(w in m for w in KEY_INSTALLED):
-        ctx = s["ctx"]
-        code = None
-        if ctx == "android":
-            code = "555"
-        elif ctx == "xcloud":
-            code = "91"
-        elif ctx in ("ios", "pc"):
-            code = "224"
-        if code:
-            return jsonify({"replies": make_replies([
-                "Ótimo! 🙌",
-                f"Digite *{code}* aqui na conversa para eu gerar seu login de teste. 😉"
-            ])})
-        # sem contexto: pergunta o aparelho
-        return jsonify({"replies": make_replies([
-            "Perfeito! Só me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) pra eu te passar o código certo. 🙂"
-        ])})
-
     # ===== fluxos determinísticos =====
 
-    # ANDROID (inclui Philips)
+    # ANDROID (inclui Philips) — sem o balão “detectado”
     if any(w in m for w in KEY_ANDROID):
         s["ctx"] = "android"
-        return jsonify({"replies": make_replies([ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST])})
+        blocks = [ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
+        return jsonify({"replies": make_replies(blocks)})
 
     # insistiu que não achou / quer link – só Android
     if any(w in m for w in KEY_LINK_ALT):
-        if s["ctx"] == "android" or any(k in m for k in ("android","philips","tv box","celular")):
-            return jsonify({"replies": make_replies([ANDROID_INSIST_1, ANDROID_INSIST_2, ANDROID_LINK, ANDROID_MANUAL])})
-        return jsonify({"replies": make_replies(
-            ["O link é para *Android*. Seu aparelho é Android? Se for, te passo agora o passo a passo. 😉"]
-        )})
+        if s["ctx"] == "android" or "android" in m or "philips" in m or "tv box" in m or "celular" in m:
+            blocks = [ANDROID_INSIST_1, ANDROID_INSIST_2, ANDROID_LINK, ANDROID_MANUAL]
+            return jsonify({"replies": make_replies(blocks)})
+        else:
+            return jsonify({"replies": make_replies(
+                ["O link é para *Android*. Seu aparelho é Android? Se for, te passo agora o passo a passo. 😉"]
+            )})
 
-    # TVs que usam Xcloud
+    # TVs que usam Xcloud — sem o balão “detectada”
     if any(w in m for w in KEY_XCLOUD_DEVICES):
         s["ctx"] = "xcloud"
-        return jsonify({"replies": make_replies([XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP])})
+        blocks = [XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
+        return jsonify({"replies": make_replies(blocks)})
 
     # PC
     if any(w in m for w in KEY_PC):
@@ -228,7 +213,7 @@ def responder():
         s["ctx"] = "ios"
         return jsonify({"replies": make_replies(IOS_MSG)})
 
-    # apps específicos
+    # ===== Apps específicos SEM código (QR/MAC) =====
     if "duplecast" in m:
         s["ctx"] = "xcloud"
         return jsonify({"replies": make_replies(DUPLECAST_STEPS)})
@@ -241,6 +226,19 @@ def responder():
     if "ott player" in m or "ottplayer" in m:
         s["ctx"] = "xcloud"
         return jsonify({"replies": make_replies(OTT_STEPS)})
+
+    # ===== Confirmação de instalação → pedir CÓDIGO (exceto OTT/Duplecast/SmartOne) =====
+    if any(k in m for k in KEY_CONFIRM):
+        # se a frase mencionar explicitamente um app de QR/MAC, cai no fluxo acima (já tratado)
+        # do contrário, usa o contexto
+        if s["ctx"] == "xcloud":
+            return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **91** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
+        if s["ctx"] == "android":
+            return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **555** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
+        if s["ctx"] in {"ios", "pc"}:
+            return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **224** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
+        # sem contexto claro
+        return jsonify({"replies": make_replies(["Legal! Você instalou em qual aparelho/app? (Android, Xcloud, iPhone, PC, Duplecast, SmartOne, OTT...)"])})
 
     # cliente digitou um dos códigos
     if m.strip() in CODIGOS_TESTE:
