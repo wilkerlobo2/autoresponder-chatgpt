@@ -5,221 +5,343 @@ import os
 app = Flask(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ===================== CONSTANTES / MENSAGENS =====================
+# =====================================================================
+# Helpers
+# =====================================================================
 
-MSG_BEM_VINDO = (
-    "Olá! 👋 Seja bem-vindo! Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿\n"
-    "Vamos começar seu teste gratuito?\n\n"
-    "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Celular, Computador...)."
-)
+def replies_from_blocks(blocks):
+    """Converte uma lista de strings em múltiplas mensagens para o AutoResponder."""
+    return {"replies": [{"message": b} for b in blocks]}
 
-# Android (inclui Philips)
-MSG_ANDROID = (
-    "📱 Para Android, recomendo o *Xtream IPTV Player* (preferencial). 📺👇📲\n"
-    "Se preferir, pode usar também: *9Xtream*, *XCIPTV* ou *IPTV Stream Player*.\n"
-    "Me avise quando instalar para eu enviar seu login."
-)
-MSG_ANDROID_ALTERNATIVAS = (
-    "Opções para Android: *Xtream IPTV Player* (preferencial), *9Xtream*, *XCIPTV* ou *IPTV Stream Player*. 😉"
-)
-MSG_ANDROID_LINK = (
-    "🔔 *AÇÃO MANUAL NECESSÁRIA*\n"
-    "Se não conseguiu/ não quer instalar pelas lojas, dá pra baixar direto pelo navegador, Downloader ou NTDOWN.\n"
-    "Digite no navegador e aperte Enter: **http://xwkhb.info/axc**\n"
-    "Quando o app abrir, me avise para eu enviar seu login. ⏳"
-)
+# =====================================================================
+# Constantes de fluxo (mensagens em blocos)
+# =====================================================================
 
-# Xcloud (verde e preto)
-MSG_XCLOUD = (
-    "📺 Para sua TV, use o *Xcloud (ícone verde e preto)* — preferencial.\n"
-    "Alternativas: *OTT Player*, *Duplecast* ou *SmartOne*.\n"
-    "Me avise quando instalar para eu enviar seu login. ⏱️ Teste gratuito: *3 horas*."
-)
-MSG_XCLOUD_ALTERNATIVAS = (
-    "Alternativas ao *Xcloud (ícone verde e preto)*: *OTT Player*, *Duplecast* ou *SmartOne*. 📺"
-)
+# Boas-vindas em blocos
+WELCOME_BLOCKS = [
+    "Olá! 👋 Seja bem-vindo!",
+    "Aqui você tem acesso a *canais de TV, filmes e séries*. 📺🍿",
+    "Vamos começar seu *teste gratuito*?",
+    "Me diga qual aparelho você quer usar (ex: TV LG, Roku, Android/TV Box/Philips, iPhone, PC...)."
+]
 
-# PC / Windows
-MSG_PC = (
-    "🖥️ Para PC/Windows, baixe o app por este link:\n"
-    "https://7aps.online/iptvsmarters\n\n"
-    "Depois me avise quando abrir o link para que eu possa enviar o seu login. ☺️"
-)
+# ------------------ ANDROID (inclui Philips) ------------------
 
-# Pós‑login
-MSG_POS_LOGIN_OK = "Perfeito! Aproveite seu teste. 😊"
-MSG_POS_LOGIN_FALHOU = (
-    "Vamos resolver! Confira se digitou *exatamente* como enviado.\n"
-    "Atenção às *letras maiúsculas/minúsculas* e aos parecidos: *I (i maiúsculo)* vs *l (L minúsculo)*, *O* vs *0*.\n"
-    "Pode me enviar uma *foto da tela* mostrando como você está digitando? 📷"
-)
+ANDROID_BLOCKS = [
+    "⬇️ **BAIXE O APLICATIVO** ⬇️",
+    "• **XTREAM IPTV PLAYER** 🔥 *(preferencial)*",
+    "🛠️ **DEPOIS DE INSTALAR:** toque em **ADICIONAR / ADD** ➕ e deixe o app aberto.",
+    "✅ **OUTRAS OPÇÕES QUE TAMBÉM FUNCIONAM** ⬇️\n• **XCIPTV**\n• **IPTV STREAM PLAYER**\n• **9XTREAM**",
+    "🔎 *Dica:* pesquise pelo **nome exato** e confira **ícone** e **desenvolvedor** na loja.",
+    "📣 **ME AVISE QUANDO BAIXAR** que eu envio o seu login! 🙂"
+]
 
-# Foto/QR/MAC
-MSG_FOTO_PERGUNTA_APP = (
-    "Entendi a foto/QR/MAC! Como não consigo identificar imagens aqui, me diga **qual aplicativo** você está usando:\n"
-    "*Duplecast*, *SmartOne*, *OTT Player*, *Xcloud (ícone verde e preto)*, *Xtream IPTV Player*, *9Xtream*, *XCIPTV* ou *IPTV Stream Player*? 😉"
-)
+ANDROID_ALTERNATIVAS_BLOCKS = [
+    "Claro! 🙂 Outras opções para Android que funcionam:",
+    "• **XCIPTV**\n• **IPTV STREAM PLAYER**\n• **9XTREAM**",
+    "Baixe uma delas e me avise pra eu enviar seu login. 📲"
+]
 
-# Fluxos específicos
-MSG_DUBLECAST_PASSO = (
-    "No *Duplecast*, siga: Start ➜ Português ➜ Brasil ➜ Fuso horário *-03* ➜ *Minha duplecast*.\n"
-    "Depois envie uma *foto do QR code* de perto e digite **871** aqui na conversa (eu gero o teste via link M3U)."
-)
-MSG_DUBLECAST_JA_TEM = (
-    "Se você *já tem* o Duplecast: envie a *foto do QR code* de perto e depois digite **871** aqui na conversa. 😉"
-)
-MSG_SMARTONE = (
-    "No *SmartOne*, me envie o **MAC** (ou *foto da tela com o MAC*). Depois digite **871** para eu gerar o teste."
-)
-MSG_OTTPLAYER = (
-    "No *OTT Player*, me envie uma *foto do QR code* de perto. Em seguida, digite **871** para eu gerar o teste."
-)
+# Link alternativo (só quando não achar/instalar de jeito nenhum)
+ANDROID_LINK_BLOCKS = [
+    "🔁 **NÃO ACHOU OU NÃO CONSEGUIU INSTALAR?** Sem problema! Vamos pelo **link direto**:",
+    "🌐 **Navegador (Chrome/qualquer):**\nDigite **http://xwkhb.info/axc** e toque **Enter**. O download começa sozinho. 🔽",
+    "📺 **Downloader (TV Box):**\nAbra o app, cole **http://xwkhb.info/axc** e baixe.",
+    "📥 **NTDOWN:**\nCole **http://xwkhb.info/axc** e baixe.",
+    "🔔 **AÇÃO MANUAL NECESSÁRIA**: assim que abrir o app instalado pelo link, me avise aqui pra eu enviar o login. 😉"
+]
 
-# Planos / pagamento
-MSG_VALORES = (
-    "💰 *Planos disponíveis*:\n"
+# Quando cliente manda foto durante fluxo Android (mantém o rumo)
+ANDROID_FOTO_BLOCKS = [
+    "Vi sua imagem 👍",
+    "Aqui eu não consigo *ler fotos/QR*; siga os passos do Android acima e me diga **qual app** você escolheu (Xtream, XCIPTV, IPTV Stream Player ou 9Xtream).",
+    "Assim que instalar, me avise que eu envio seu login. 🙂"
+]
+
+# ------------------ TVS COM XCLOUD (Samsung/LG/Roku/Philco nova) ------------------
+
+XCLOUD_PRIMARY_BLOCKS = [
+    "📺 **TV compatível com Xcloud** detectada!",
+    "Use o **Xcloud (ícone verde e preto)** 🟩⬛ *(preferencial)*",
+    "Instale e me avise para eu enviar seu login. ⏱️ O teste gratuito dura **3 horas**."
+]
+
+XCLOUD_ALTERNATIVAS_BLOCKS = [
+    "Se preferir, alternativas na sua TV:",
+    "• **OTT Player**\n• **Duplecast**\n• **SmartOne**",
+    "Instale e me diga qual app escolheu pra eu te guiar certinho. 😉"
+]
+
+# ------------------ iOS / PC ------------------
+
+IOS_BLOCKS = [
+    "🍏 **iPhone/iPad (iOS):**",
+    "Baixe o **Smarters Player Lite** (ícone azul, App Store).",
+    "Quando instalar, me avise que eu te passo o acesso. 🙂"
+]
+
+PC_BLOCKS = [
+    "🖥️ **PC / Windows:**",
+    "Baixe o aplicativo por este link: https://7aps.online/iptvsmarters",
+    "Depois me avise quando abrir o app para eu enviar o seu login. 🙂"
+]
+
+# ------------------ PÓS-LOGIN ------------------
+
+POS_LOGIN_OK_BLOCKS = ["Perfeito! ✅", "Aproveite seu teste. Se precisar de algo, estou por aqui. 😊"]
+
+POS_LOGIN_FAIL_BLOCKS = [
+    "Vamos resolver isso! ⚙️",
+    "Confira se digitou *exatamente* como enviado.",
+    "Atenção às *letras maiúsculas/minúsculas* e aos parecidos: **I/l**, **O/0**.",
+    "Pode me enviar uma *foto da tela* mostrando como está digitando? 📷"
+]
+
+# ------------------ FOTOS/QR/MAC (genérico) ------------------
+
+FOTO_QUAL_APP_BLOCKS = [
+    "Entendi a foto/QR/MAC! 👍",
+    "Como não consigo identificar imagem aqui, me diga **qual aplicativo** você está usando:",
+    "• **Duplecast**\n• **SmartOne**\n• **OTT Player**\n• **Xcloud (ícone verde e preto)**\n• **Xtream IPTV Player**\n• **9Xtream**\n• **XCIPTV**\n• **IPTV Stream Player**"
+]
+
+# ------------------ APPS ESPECÍFICOS ------------------
+
+DUPLECAST_PASSO_BLOCKS = [
+    "Certo! **Duplecast** 📱",
+    "Siga: *Start → Português → Brasil → Fuso horário -03 → Minha duplecast*.",
+    "Depois, envie uma *foto do QR code* de perto.",
+    "Em seguida, digite **871** aqui na conversa para eu gerar o teste (link M3U)."
+]
+
+DUPLECAST_JA_TEM_BLOCKS = [
+    "Perfeito! Você já tem **Duplecast** ✅",
+    "Envie uma *foto do QR code* de perto.",
+    "Depois, digite **871** aqui para eu gerar o teste (link M3U)."
+]
+
+SMARTONE_BLOCKS = [
+    "App **SmartOne** 📺",
+    "Me envie o **MAC** (ou uma *foto da tela com o MAC*).",
+    "Depois disso, digite **871** aqui para eu gerar o teste."
+]
+
+OTTPLAYER_BLOCKS = [
+    "App **OTT Player** 📺",
+    "Me envie uma *foto do QR code* de perto.",
+    "Depois disso, digite **871** aqui para eu gerar o teste."
+]
+
+# ------------------ PLANOS / PAGAMENTO ------------------
+
+PLANOS_BLOCKS = [
+    "💰 **Planos disponíveis**:",
     "1 mês – R$ 26,00 | 2 meses – R$ 47,00 | 3 meses – R$ 68,00 | 6 meses – R$ 129,00 | 1 ano – R$ 185,00"
-)
-MSG_PAGAMENTO = (
-    "💳 *Formas de pagamento*: Pix ou Cartão.\n"
-    "Cartão (link seguro): https://mpago.la/2Nsh3Fq\n"
-    "Vou te mandar o *Pix (CNPJ)* em uma mensagem separada para facilitar a cópia."
-)
-MSG_PIX_SOZINHO = "Pix (CNPJ): 46.370.366/0001-97"
+]
 
-MSG_AUDIO = "Ops! 😅 Não consigo interpretar *áudios*. Pode me mandar por *texto*? Continuo te ajudando!"
+PAGAMENTO_BLOCKS = [
+    "💳 **Formas de pagamento**:",
+    "Pix ou Cartão (link seguro): https://mpago.la/2Nsh3Fq",
+    "Vou enviar o *Pix (CNPJ)* em uma mensagem separada para facilitar a cópia."
+]
 
-MSG_FLAG_MANUAL = "🔔 *AÇÃO MANUAL NECESSÁRIA*: analisar e enviar login/dados quando o cliente confirmar."
+PIX_SOZINHO = "Pix (CNPJ): 46.370.366/0001-97"
 
-# Dicionários de palavras‑chave
+AUDIO_BLOCKS = [
+    "Ops! 😅",
+    "Por aqui eu não consigo interpretar *áudios*.",
+    "Pode me mandar por *texto*? Eu continuo te ajudando normalmente!"
+]
+
+# =====================================================================
+# Palavras-chave / grupos
+# =====================================================================
+
 CODIGOS_TESTE = {"224", "555", "91", "88", "871", "98", "94"}
+
 KEY_OK = {"deu certo", "acessou", "funcionou", "sim", "consegui", "tudo certo", "abriu", "logou"}
 KEY_NOK = {"não", "nao", "n consegui", "não funcionou", "nao funcionou", "n deu certo", "nao deu certo", "não deu certo"}
-KEY_FOTO = {"foto", "qrcode", "qr code", "qr-code", "qr", "mac:", "endereço mac", "endereco mac", "mostrei a tela"}
-KEY_ANDROID = {"android", "tv box", "projetor", "celular android", "celular", "philips"}  # Philips = Android
+
+KEY_FOTO = {"foto", "qrcode", "qr code", "qr-code", "qr", "mac:", "endereço mac", "endereco mac", "mostrei a tela", "imagem", "print"}
+
+KEY_ANDROID = {"android", "tv box", "projetor", "celular android", "celular", "philips"}
+
 KEY_XCLOUD_DEVICES = {"samsung", "lg", "roku", "philco nova", "xcloud"}
+
 KEY_PC = {"pc", "computador", "notebook", "windows", "macbook"}
+
 KEY_LINK_ALT = {
     "não consigo baixar", "nao consigo baixar", "não acho na loja", "nao acho na loja",
     "não encontra na loja", "nao encontra na loja", "não tem na loja", "nao tem na loja",
-    "tem link", "manda o link", "baixar por link", "link alternativo", "apk", "aptoide", "ntdown", "downloader"
-}
-KEY_PAG = {"pix", "pagamento", "valor", "quanto", "plano", "planos", "preço", "preco"}
-KEY_OUTRO = {
-    "tem outro", "tem mais algum", "quero outro", "outro app", "tem mais uma opção",
-    "tem mais opções", "não tem esse", "nao tem esse", "não tem esse.", "nao tem esse."
+    "tem link", "manda o link", "baixar por link", "link alternativo", "apk", "aptoide", "ntdown", "downloader",
+    "não achei", "nao achei", "não tem", "nao tem", "não encontrei", "nao encontrei"
 }
 
-# Sessões por cliente: histórico e contexto (android / xcloud / pc)
+KEY_PAG = {"pix", "pagamento", "valor", "quanto", "plano", "planos", "preço", "preco"}
+
+KEY_OUTRO = {
+    "tem outro", "tem mais algum", "quero outro", "outro app", "tem mais uma opção", "tem mais opções",
+    "não tem esse", "nao tem esse", "não tem esse.", "nao tem esse."
+}
+
+# =====================================================================
+# Estado por contato (histórico curto + contexto do fluxo)
+# =====================================================================
+
 sessions = {}  # numero -> {"msgs": [..], "ctx": None}
 
-
-# ===================== APP =====================
+# =====================================================================
+# Rota principal
+# =====================================================================
 
 @app.route("/", methods=["POST"])
 def responder():
     data = request.get_json()
     query = data.get("query", {})
-    numero = (query.get("sender") or "").strip()
-    mensagem = (query.get("message") or "").strip()
+    numero = query.get("sender", "").strip()
+    mensagem = query.get("message", "").strip()
     m = mensagem.lower()
 
     if not numero or not mensagem:
         return jsonify({"replies": [{"message": "⚠️ Mensagem inválida recebida."}]})
 
-    # Cria sessão e boas‑vindas
+    # Inicia sessão
     if numero not in sessions:
         sessions[numero] = {"msgs": [], "ctx": None}
-        return jsonify({"replies": [{"message": MSG_BEM_VINDO}]})
+        return jsonify(replies_from_blocks(WELCOME_BLOCKS))
 
-    # Histórico curto
+    # Atualiza histórico curto
     s = sessions[numero]
     s["msgs"].append(f"Cliente: {m}")
     contexto = "\n".join(s["msgs"][-15:])
 
-    # ---------------- Pós‑login ----------------
+    # ---------------- Pós-login ----------------
     if any(f"Cliente: {c}" in contexto for c in CODIGOS_TESTE) and any(k in m for k in KEY_OK):
-        return jsonify({"replies": [{"message": MSG_POS_LOGIN_OK}]})
+        return jsonify(replies_from_blocks(POS_LOGIN_OK_BLOCKS))
 
     if any(f"Cliente: {c}" in contexto for c in CODIGOS_TESTE) and any(k in m for k in KEY_NOK):
-        return jsonify({"replies": [{"message": MSG_POS_LOGIN_FALHOU}]})
-
-    # ---------------- Foto/QR/MAC ----------------
-    if any(k in m for k in KEY_FOTO):
-        return jsonify({"replies": [{"message": MSG_FOTO_PERGUNTA_APP}]})
+        return jsonify(replies_from_blocks(POS_LOGIN_FAIL_BLOCKS))
 
     # ---------------- Áudio ----------------
     if "áudio" in m or "audio" in m:
-        return jsonify({"replies": [{"message": MSG_AUDIO}]})
+        return jsonify(replies_from_blocks(AUDIO_BLOCKS))
 
-    # ---------------- “Tem outro?” respeitando contexto ----------------
+    # ---------------- “Tem outro?” controlado por contexto ----------------
     if any(phrase in m for phrase in KEY_OUTRO):
         if s["ctx"] == "android":
-            return jsonify({"replies": [{"message": MSG_ANDROID_ALTERNATIVAS}]})
+            return jsonify(replies_from_blocks(ANDROID_ALTERNATIVAS_BLOCKS))
         elif s["ctx"] == "xcloud":
-            return jsonify({"replies": [{"message": MSG_XCLOUD_ALTERNATIVAS}]})
+            return jsonify(replies_from_blocks(XCLOUD_ALTERNATIVAS_BLOCKS))
         else:
-            return jsonify({"replies": [{"message": "Me diga o aparelho (Android, Samsung/LG/Roku, iPhone ou PC) que te mostro as opções certinhas. 😉"}]})
+            return jsonify({"replies": [{"message": "Me diga o aparelho (Android/TV Box/Philips, Samsung/LG/Roku, iPhone ou PC) e te passo as opções certinhas. 😉"}]})
+
+    # ---------------- Foto/QR/MAC ----------------
+    if any(k in m for k in KEY_FOTO):
+        if s["ctx"] == "android":
+            return jsonify(replies_from_blocks(ANDROID_FOTO_BLOCKS))
+        return jsonify(replies_from_blocks(FOTO_QUAL_APP_BLOCKS))
 
     # ===================== RESPOSTAS DETERMINÍSTICAS =====================
 
-    # Android (define contexto)
+    # ANDROID (inclui Philips) – define contexto
     if any(word in m for word in KEY_ANDROID):
         s["ctx"] = "android"
-        return jsonify({"replies": [{"message": MSG_ANDROID}]})
+        return jsonify(replies_from_blocks(ANDROID_BLOCKS))
 
-    # Precisa de link alternativo (apenas se já estiver em contexto Android ou a frase citar Android)
+    # Pedir link alternativo (somente se Android declarado ou contexto Android)
     if any(f in m for f in KEY_LINK_ALT):
-        if s["ctx"] == "android" or any(w in m for w in ("android", "tv box", "philips", "celular")):
-            return jsonify({"replies": [{"message": MSG_ANDROID_LINK}, {"message": MSG_FLAG_MANUAL}]})
+        if s["ctx"] == "android" or any(w in m for w in KEY_ANDROID):
+            return jsonify(replies_from_blocks(ANDROID_LINK_BLOCKS))
         else:
-            return jsonify({"replies": [{"message": "O link alternativo é para *Android*. Seu aparelho é Android? Se for, te passo agora. 😉"}]})
+            return jsonify({"replies": [{"message": "O link alternativo é para *Android*. Seu aparelho é Android/TV Box/Philips? Se for, te mando agora. 😉"}]})
 
-    # Dispositivos com Xcloud (define contexto)
+    # Dispositivos de Xcloud – define contexto
     if any(word in m for word in KEY_XCLOUD_DEVICES):
         s["ctx"] = "xcloud"
-        return jsonify({"replies": [{"message": MSG_XCLOUD}]})
+        # envia preferencial + alternativas em blocos
+        blocks = XCLOUD_PRIMARY_BLOCKS + XCLOUD_ALTERNATIVAS_BLOCKS
+        return jsonify(replies_from_blocks(blocks))
 
-    # PC / Windows (define contexto)
+    # iOS
+    if "iphone" in m or "ios" in m:
+        s["ctx"] = "ios"
+        return jsonify(replies_from_blocks(IOS_BLOCKS))
+
+    # PC / Windows
     if any(p in m for p in KEY_PC):
         s["ctx"] = "pc"
-        return jsonify({"replies": [{"message": MSG_PC}]})
+        return jsonify(replies_from_blocks(PC_BLOCKS))
 
-    # Apps mencionados explicitamente
+    # Cliente menciona explicitamente apps
     if "duplecast" in m:
         s["ctx"] = "xcloud"
-        return jsonify({"replies": [{"message": MSG_DUBLECAST_PASSO}]})
+        return jsonify(replies_from_blocks(DUPLECAST_PASSO_BLOCKS))
     if "já tenho duplecast" in m or "ja tenho duplecast" in m:
         s["ctx"] = "xcloud"
-        return jsonify({"replies": [{"message": MSG_DUBLECAST_JA_TEM}]})
+        return jsonify(replies_from_blocks(DUPLECAST_JA_TEM_BLOCKS))
     if "smartone" in m or "smart one" in m:
         s["ctx"] = "xcloud"
-        return jsonify({"replies": [{"message": MSG_SMARTONE}]})
+        return jsonify(replies_from_blocks(SMARTONE_BLOCKS))
     if "ott player" in m or "ottplayer" in m:
         s["ctx"] = "xcloud"
-        return jsonify({"replies": [{"message": MSG_OTTPLAYER}]})
+        return jsonify(replies_from_blocks(OTTPLAYER_BLOCKS))
 
-    # Cliente digitou código de teste (quem envia login é o AutoResponder)
+    # Cliente digita um código de teste (quem envia login é o AutoResponder)
     if m.strip() in CODIGOS_TESTE:
         return jsonify({"replies": [{"message": "🔓 Gerando seu login de teste, só um instante..."}]})
 
-    # Planos + pagamento + Pix separado
+    # ---------------- Confirmação de instalação → enviar código correto ----------------
+    if any(p in m for p in ["instalei", "baixei", "pronto", "feito", "já instalei", "ja instalei", "acessado", "abri"]):
+        # usa contexto + últimas mensagens para inferir
+        ultimas = [msg for msg in s["msgs"][-6:] if msg.startswith("Cliente:")]
+        recent = " ".join(ultimas).lower()
+
+        if ("xcloud" in recent) or any(d in recent for d in ["samsung", "lg", "roku", "philco nova"]):
+            codigo = "91"
+        elif any(appkw in recent for appkw in ["xtream", "9xtream", "xciptv", "iptv stream player", "vu iptv", "android", "tv box", "celular", "projetor", "philips"]):
+            codigo = "555"
+        elif any(d in recent for d in ["iphone", "ios"]):
+            codigo = "224"
+        elif any(d in recent for d in ["computador", "pc", "notebook", "macbook", "windows"]):
+            codigo = "224"
+        elif "philco antiga" in recent:
+            codigo = "98"
+        elif "tv antiga" in recent or "smart stb" in recent:
+            codigo = "88"
+        elif any(a in recent for a in ["duplecast", "smartone", "ott"]):
+            codigo = "871"
+        else:
+            # fallback pelo contexto
+            if s["ctx"] == "android":
+                codigo = "555"
+            elif s["ctx"] == "xcloud":
+                codigo = "91"
+            elif s["ctx"] in {"ios", "pc"}:
+                codigo = "224"
+            else:
+                codigo = "91"
+
+        return jsonify({"replies": [{"message": f"Digite **{codigo}** aqui na conversa para receber seu login. 😉"}]})
+
+    # ---------------- Planos / Pagamento ----------------
     if any(k in m for k in KEY_PAG):
-        return jsonify({"replies": [
-            {"message": MSG_VALORES},
-            {"message": MSG_PAGAMENTO},
-            {"message": MSG_PIX_SOZINHO}
-        ]})
+        return jsonify({"replies": [{"message": PLANOS_BLOCKS[0] + "\n" + PLANOS_BLOCKS[1]},
+                                    {"message": "\n".join(PAGAMENTO_BLOCKS)},
+                                    {"message": PIX_SOZINHO}]})
 
     # ===================== FALLBACK COM IA (casos gerais) =====================
     prompt = (
-        "Você é um atendente de IPTV no WhatsApp. Responda curto, objetivo e educado.\n"
-        "Nunca recomende apps fora desta lista: Xtream IPTV Player, 9Xtream, XCIPTV, IPTV Stream Player, "
-        "Xcloud (ícone verde e preto), OTT Player, Duplecast, SmartOne, Smarters Player Lite (iOS) e IPTV Smarters (PC).\n"
-        "Teste gratuito sempre *3 horas*. Ao falar de valores, envie planos + Pix em mensagem separada.\n"
-        "Se o cliente enviar foto/QR/MAC, diga que não identifica imagens e pergunte qual app está usando.\n"
-        "Se pedir link alternativo para Android, use exatamente: http://xwkhb.info/axc e a frase '🔔 AÇÃO MANUAL NECESSÁRIA'.\n"
-        f"Histórico recente:\n{contexto}\n\nMensagem do cliente: '{mensagem}'\nResponda seguindo estritamente as regras."
+        "Você é um atendente de IPTV no WhatsApp. Responda curto, objetivo e educado. "
+        "Nunca recomende aplicativos fora desta lista: Xtream IPTV Player, 9Xtream, XCIPTV, IPTV Stream Player, "
+        "Xcloud (ícone verde e preto), OTT Player, Duplecast, SmartOne, Smarters Player Lite (iOS) e IPTV Smarters para PC. "
+        "Teste gratuito sempre 3 horas. Se falar sobre valores, envie planos e depois Pix em mensagem separada. "
+        "Se o cliente enviar foto/QR/MAC, diga que não identifica imagens e pergunte qual aplicativo está usando. "
+        "Fluxo Android deve manter ênfase em Xtream, com alternativas 9Xtream, XCIPTV, IPTV Stream Player; "
+        "só ofereça http://xwkhb.info/axc quando ele não achar/instalar na loja. "
+        "Se mandar áudio, diga que não interpreta áudio e peça texto.\n\n"
+        f"Histórico recente:\n{contexto}\n\n"
+        f"Mensagem do cliente: '{mensagem}'\n"
+        "Responda seguindo essas regras."
     )
 
     try:
@@ -233,7 +355,8 @@ def responder():
     except Exception as e:
         return jsonify({"replies": [{"message": f"⚠️ Erro ao gerar resposta: {str(e)}"}]})
 
-# =======================================================================
+# =====================================================================
 
 if __name__ == "__main__":
+    # Render/AutoResponder costuma usar porta 10000
     app.run(host="0.0.0.0", port=10000)
