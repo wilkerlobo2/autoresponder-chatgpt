@@ -111,25 +111,24 @@ PAGAMENTO = [
 ]
 PIX_SOLO = ["Pix (CNPJ): *46.370.366/0001-97*"]
 
-# ===== Diagnóstico e suporte (mais humano)
+# ===== Suporte mais humano
 SUPORTE_ABERTURA = [
     "Vamos resolver isso junt@s. 🛠️",
     "Antes de tudo: sua internet está *estável* em outros apps (YouTube/Netflix)?"
 ]
 SUPORTE_PASSOS = [
-    "✅ Tente na ordem (pode dizer qual já fez):",
-    "1) *Reiniciar* modem/roteador e o app (fechar e abrir).",
-    "2) Se for Wi‑Fi, teste *5 GHz* ou *cabo Ethernet*; evite downloads/jogos na hora.",
-    "3) Se usa *VPN/Proxy/DNS privado*, desligue por enquanto.",
-    "4) No app, mude o *player/decoder* (ExoPlayer/Native) e a *qualidade* do canal (HD ↔️ SD).",
-    "5) Ajuste *DNS* do roteador: *1.1.1.1* (Cloudflare) e *8.8.8.8* (Google).",
-    "6) Sincronize *data/hora automáticas* do aparelho.",
-    "7) Se nada, me diga o *canal*, *horário* e o *modelo* do aparelho pra eu checar a rota."
+    "✅ Tente na ordem (me diga qual já fez):",
+    "1) *Reiniciar* modem/roteador e o app.",
+    "2) Se for Wi‑Fi, teste *5 GHz* ou *cabo Ethernet*.",
+    "3) Desligue *VPN/Proxy/DNS privado* por enquanto.",
+    "4) No app, troque *player/decoder* (Exo ↔️ Nativo) e *qualidade* (HD ↔️ SD).",
+    "5) Ajuste *DNS*: 1.1.1.1 e 8.8.8.8.",
+    "6) Ative *data/hora automáticas* do aparelho.",
+    "7) Se nada, me diga *canal + horário + modelo* do aparelho."
 ]
 SUPORTE_AUDIO = [
     "Sem áudio? 🔇",
-    "No app, troque o *decoder de áudio* (Exo ↔️ Nativo), confira volume do *Media* e *Bluetooth/ARC*.",
-    "Veja se outros canais tocam som; se só 1 canal, me diga qual é."
+    "Troque o *decoder de áudio* (Exo ↔️ Nativo), confira volumes (Media/Bluetooth/ARC) e teste outro canal."
 ]
 SUPORTE_EPG = [
     "Guia/EPG fora do ar? 🗓️",
@@ -158,7 +157,9 @@ KEY_SEM_AUDIO = {"sem áudio","sem audio","mudo","muda"}
 KEY_EPG = {"guia","epg","programação","programacao"}
 
 # ===== sessões (histórico + contexto)
-sessions = {}  # numero -> {"msgs": [...], "ctx": None, "last_app": None}
+# ctx: "android" | "xcloud" | "pc" | "ios" | None
+# last_app: "duplecast" | "smartone" | "ott" | "device" | None
+sessions = {}
 
 @app.route("/", methods=["POST"])
 def responder():
@@ -186,7 +187,7 @@ def responder():
     if any(f"Cliente: {c}" in contexto for c in CODIGOS_TESTE) and any(k in m for k in KEY_NOK):
         return jsonify({"replies": make_replies(POS_FAIL)})
 
-    # ===== suporte técnico rápido (humano)
+    # ===== suporte rápido
     if any(k in m for k in KEY_TRAVA):
         return jsonify({"replies": make_replies(SUPORTE_ABERTURA + SUPORTE_PASSOS)})
     if any(k in m for k in KEY_SEM_AUDIO):
@@ -218,7 +219,7 @@ def responder():
     # ANDROID (inclui Philips)
     if any(w in m for w in KEY_ANDROID):
         s["ctx"] = "android"
-        s["last_app"] = "android"
+        s["last_app"] = "device"   # <- zera qualquer app específico
         blocks = [ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
         return jsonify({"replies": make_replies(blocks)})
 
@@ -235,17 +236,20 @@ def responder():
     # TVs que usam Xcloud
     if any(w in m for w in KEY_XCLOUD_DEVICES):
         s["ctx"] = "xcloud"
+        s["last_app"] = "device"   # <- limpando app específico
         blocks = [XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
         return jsonify({"replies": make_replies(blocks)})
 
     # PC
     if any(w in m for w in KEY_PC):
         s["ctx"] = "pc"
+        s["last_app"] = "device"   # <- limpando app específico
         return jsonify({"replies": make_replies(PC_MSG)})
 
     # iOS
     if any(w in m for w in KEY_IOS):
         s["ctx"] = "ios"
+        s["last_app"] = "device"   # <- limpando app específico
         return jsonify({"replies": make_replies(IOS_MSG)})
 
     # ===== Apps específicos SEM código (QR/MAC)
@@ -266,21 +270,22 @@ def responder():
         s["last_app"] = "ott"
         return jsonify({"replies": make_replies(OTT_STEPS)})
 
-    # ===== Confirmação de instalação → pedir CÓDIGO (exceto OTT/Duplecast/SmartOne)
+    # ===== Confirmação de instalação → pede código certo
     if any(k in m for k in KEY_CONFIRM):
-        if s.get("last_app") in {"duplecast","smartone","ott"}:
-            # Já direcionados ao QR/MAC; reforça o passo correto
+        # Só usa QR/MAC se o último passo foi app específico E ainda estamos em Xcloud
+        if s.get("last_app") in {"duplecast","smartone","ott"} and s.get("ctx") == "xcloud":
             if s["last_app"] == "smartone":
                 return jsonify({"replies": make_replies(SMARTONE_STEPS)})
-            elif s["last_app"] == "ott":
+            if s["last_app"] == "ott":
                 return jsonify({"replies": make_replies(OTT_STEPS)})
-            else:
-                return jsonify({"replies": make_replies(DUPLECAST_STEPS)})
-        if s["ctx"] == "xcloud":
+            return jsonify({"replies": make_replies(DUPLECAST_STEPS)})
+
+        # Caso contrário, prioriza o DISPOSITIVO atual
+        if s.get("ctx") == "xcloud":
             return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **91** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
-        if s["ctx"] == "android":
+        if s.get("ctx") == "android":
             return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **555** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
-        if s["ctx"] in {"ios", "pc"}:
+        if s.get("ctx") in {"ios", "pc"}:
             return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **224** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
 
         return jsonify({"replies": make_replies(["Legal! Você instalou em qual aparelho/app? (Android, Xcloud, iPhone, PC, Duplecast, SmartOne, OTT...)"])})
@@ -294,28 +299,25 @@ def responder():
         replies = make_replies(PLANOS) + make_replies(PAGAMENTO) + make_replies(PIX_SOLO)
         return jsonify({"replies": replies})
 
-    # ===== fallback com IA (mais livre e humana, mas com trilhos) =====
+    # ===== fallback com IA (mais livre, porém com trilhos)
     prompt = (
         "Você é um atendente de IPTV no WhatsApp. Fale de forma humana, breve e empática, "
         "faça perguntas quando útil e resolva problemas proativamente. Use emojis com moderação.\n"
         "OBRIGATÓRIO: nunca recomende apps fora desta lista: Xtream IPTV Player, 9Xtream, XCIPTV, IPTV Stream Player, "
         "Xcloud (ícone verde e preto), OTT Player, Duplecast, SmartOne, Smarters Player Lite (iOS) e IPTV Smarters para PC.\n"
-        "Regras de Acesso: Android → código 555; Xcloud (Samsung/LG/Roku/Philco nova) → 91; iOS/PC → 224. "
-        "Duplecast/OTT pedem foto do QR; SmartOne pede foto do MAC (sem código).\n"
-        "Link alternativo do Android (somente se não encontrar na loja): http://xwkhb.info/axc.\n"
-        "Suporte: pode falar de DNS (1.1.1.1 / 8.8.8.8), Wi‑Fi 5 GHz, cabo, desligar VPN, trocar decoder (Exo/Native), "
-        "sincronizar data/hora, reiniciar modem, reduzir qualidade, fechar downloads. Se pedir pagamento, envie planos "
-        "e Pix em mensagem separada.\n"
-        "Histórico recente:\n"
-        f"{contexto}\n\n"
-        f"Mensagem do cliente: {mensagem}\n\n"
-        "Responda em 1–3 frases, oferecendo o próximo passo claro."
+        "Regras de Acesso: Android → código 555; Xcloud → 91; iOS/PC → 224. "
+        "Duplecast/OTT pedem foto do QR; SmartOne pede foto do MAC (sem código). "
+        "Link Android só se não encontrar na loja: http://xwkhb.info/axc.\n"
+        "Pode sugerir DNS 1.1.1.1/8.8.8.8, Wi‑Fi 5 GHz, cabo, desligar VPN, trocar decoder, reiniciar modem, etc.\n"
+        f"Histórico recente:\n{contexto}\n\n"
+        f"Mensagem do cliente: {mensagem}\n"
+        "Responda em 1–3 frases, com próximo passo claro."
     )
     try:
         result = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role":"user","content":prompt}],
-            temperature=0.7  # um pouco mais solta/creativa
+            temperature=0.7
         )
         texto = result.choices[0].message.content.strip()
         return jsonify({"replies": make_replies([texto])})
