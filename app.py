@@ -26,7 +26,7 @@ MSG_BEM_VINDO = [
     "Me diga qual aparelho você quer usar (ex: TV LG, Samsung, Roku, Philips, Android, iPhone, PC…)."
 ]
 
-# ===== Android (inclui PHILIPS)
+# ANDROID (inclui PHILIPS)
 ANDROID_PREF = "⬇️ BAIXE *Xtream IPTV Player* (preferencial)."
 ANDROID_ALT_TITLE = "✅ OUTRAS OPÇÕES (se preferir):"
 ANDROID_ALT_LIST = "• *9Xtream*\n• *XCIPTV*\n• *IPTV Stream Player*"
@@ -36,14 +36,14 @@ ANDROID_INSIST_2 = "Se ainda assim *não conseguiu*, aí sim tem *link direto*:"
 ANDROID_LINK = "🔗 http://xwkhb.info/axc\n(cole no navegador/Downloader/NTDOWN da sua TV Box/Android e o download inicia.)"
 ANDROID_MANUAL = "🔔 *AÇÃO MANUAL NECESSÁRIA*: cliente usará o link. Enviar login quando avisar."
 
-# ===== Xcloud (Samsung/LG/Roku/Philco nova)
+# XCLOUD (Samsung/LG/Roku/Philco nova)
 XCLOUD_PREF = "Use o *Xcloud (ícone verde e preto)* 🟩⬛ *(preferencial).*"
 XCLOUD_TESTE = "Instale e me avise para eu enviar seu login. ⏳ O teste gratuito dura *3 horas*."
 XCLOUD_ALT_TITLE = "Se preferir, alternativas na sua TV:"
 XCLOUD_ALT_LIST = "• *OTT Player*\n• *Duplecast*\n• *SmartOne*"
 XCLOUD_ASK_APP = "Instale e me diga *qual app* escolheu pra eu te guiar certinho. 😉"
 
-# ===== PC / iOS
+# PC / iOS
 PC_MSG = [
     "🖥️ *PC/Windows*",
     "Baixe o app por este link:",
@@ -56,7 +56,7 @@ IOS_MSG = [
     "Quando instalar, me avise para eu enviar seu login. ⏳"
 ]
 
-# ===== Pós‑login
+# Pós‑login
 POS_OK = ["Tudo certo! ✅", "Aproveite seu teste. 😄"]
 POS_FAIL = [
     "Vamos resolver! ⚙️",
@@ -65,7 +65,7 @@ POS_FAIL = [
     "Pode me enviar *foto da tela* mostrando como está digitando? 📷"
 ]
 
-# ===== Imagens / QR / MAC
+# Imagens / QR / MAC
 FOTO_ANDROID = [
     "Recebi uma *imagem*. 👀",
     "Como estamos no *Android*, não dá para identificar a imagem aqui.",
@@ -77,7 +77,7 @@ FOTO_TV = [
     "*Duplecast*, *SmartOne*, *OTT Player* ou *Xcloud (ícone verde e preto)*?"
 ]
 
-# ===== Fluxos específicos (sem código, pedem QR/MAC)
+# Fluxos específicos (QR/MAC)
 DUPLECAST_STEPS = [
     "📲 *Duplecast*",
     "Siga: *Start → Português → Brasil → Fuso -03 → Minha duplecast*.",
@@ -99,7 +99,7 @@ OTT_STEPS = [
     "Depois, digite **871** pra eu gerar seu teste."
 ]
 
-# ===== Planos / pagamento
+# Planos / pagamento
 PLANOS = [
     "💰 *Planos*",
     "1 mês – R$ 26,00 | 2 meses – R$ 47,00 | 3 meses – R$ 68,00 | 6 meses – R$ 129,00 | 1 ano – R$ 185,00"
@@ -111,7 +111,7 @@ PAGAMENTO = [
 ]
 PIX_SOLO = ["Pix (CNPJ): *46.370.366/0001-97*"]
 
-# ===== Suporte mais humano
+# Suporte técnico humano
 SUPORTE_ABERTURA = [
     "Vamos resolver isso junt@s. 🛠️",
     "Antes de tudo: sua internet está *estável* em outros apps (YouTube/Netflix)?"
@@ -135,7 +135,7 @@ SUPORTE_EPG = [
     "Limpe o *cache* do app e abra novamente. Alguns guias atualizam em até *15 min*."
 ]
 
-# ===== Palavras‑chave e contexto
+# Palavras‑chave e contexto
 CODIGOS_TESTE = {"224", "555", "91", "88", "871", "98", "94"}
 KEY_OK = {"deu certo","acessou","funcionou","sim","consegui","tudo certo","abriu","logou"}
 KEY_NOK = {"não","nao","n consegui","não funcionou","nao funcionou","n deu certo","nao deu certo","não deu certo"}
@@ -155,11 +155,16 @@ KEY_CONFIRM = {"instalei","baixei","pronto","feito","já instalei","ja instalei"
 KEY_TRAVA = {"trava","travando","buffer","carregando","congelou","parando","lento","queda","oscilando"}
 KEY_SEM_AUDIO = {"sem áudio","sem audio","mudo","muda"}
 KEY_EPG = {"guia","epg","programação","programacao"}
+KEY_AUDIO = {"áudio","audio","mensagem de voz","voice message","áudio enviado","enviei audio"}
 
-# ===== sessões (histórico + contexto)
+# sessões (histórico + contexto)
 # ctx: "android" | "xcloud" | "pc" | "ios" | None
 # last_app: "duplecast" | "smartone" | "ott" | "device" | None
+# audio_count: int (quantidade de insistências em áudio)
+# handoff: bool (escalonado p/ humano)
 sessions = {}
+
+ATENCAO_MANUAL_BALAO = ["🔔 *AÇÃO MANUAL NECESSÁRIA*: vou te chamar por aqui com atendimento humano pra continuar."]
 
 @app.route("/", methods=["POST"])
 def responder():
@@ -174,12 +179,37 @@ def responder():
 
     # cria sessão
     if numero not in sessions:
-        sessions[numero] = {"msgs": [], "ctx": None, "last_app": None}
+        sessions[numero] = {"msgs": [], "ctx": None, "last_app": None, "audio_count": 0, "handoff": False}
         return jsonify({"replies": make_replies(MSG_BEM_VINDO)})
 
     s = sessions[numero]
     s["msgs"].append(f"Cliente: {m}")
     contexto = "\n".join(s["msgs"][-30:])
+
+    # se já escalonou para humano, não processe mais nada
+    if s.get("handoff"):
+        return jsonify({"replies": make_replies(ATENCAO_MANUAL_BALAO)})
+
+    # ===== controle de áudio / escalonamento
+    if any(k in m for k in KEY_AUDIO):
+        s["audio_count"] = s.get("audio_count", 0) + 1
+        if s["audio_count"] == 1:
+            return jsonify({"replies": make_replies([
+                "Ops! 😅 Eu não consigo interpretar *áudio* por aqui.",
+                "Pode mandar *por texto*? Assim eu te ajudo rapidinho. 😉"
+            ])})
+        elif s["audio_count"] == 2:
+            return jsonify({"replies": make_replies([
+                "Ainda não consigo ouvir *áudios*. ✍️",
+                "Me envie em *texto* por favor, ou vou acionar o atendimento humano."
+            ])})
+        else:
+            s["handoff"] = True
+            return jsonify({"replies": make_replies(ATENCAO_MANUAL_BALAO)})
+
+    # reset contagem de áudio quando vier texto normal
+    if s.get("audio_count", 0) > 0:
+        s["audio_count"] = 0
 
     # ===== pós‑login
     if any(f"Cliente: {c}" in contexto for c in CODIGOS_TESTE) and any(k in m for k in KEY_OK):
@@ -219,7 +249,7 @@ def responder():
     # ANDROID (inclui Philips)
     if any(w in m for w in KEY_ANDROID):
         s["ctx"] = "android"
-        s["last_app"] = "device"   # <- zera qualquer app específico
+        s["last_app"] = "device"
         blocks = [ANDROID_PREF, ANDROID_ALT_TITLE, ANDROID_ALT_LIST, ANDROID_INST]
         return jsonify({"replies": make_replies(blocks)})
 
@@ -236,23 +266,23 @@ def responder():
     # TVs que usam Xcloud
     if any(w in m for w in KEY_XCLOUD_DEVICES):
         s["ctx"] = "xcloud"
-        s["last_app"] = "device"   # <- limpando app específico
+        s["last_app"] = "device"
         blocks = [XCLOUD_PREF, XCLOUD_TESTE, XCLOUD_ALT_TITLE, XCLOUD_ALT_LIST, XCLOUD_ASK_APP]
         return jsonify({"replies": make_replies(blocks)})
 
     # PC
     if any(w in m for w in KEY_PC):
         s["ctx"] = "pc"
-        s["last_app"] = "device"   # <- limpando app específico
+        s["last_app"] = "device"
         return jsonify({"replies": make_replies(PC_MSG)})
 
     # iOS
     if any(w in m for w in KEY_IOS):
         s["ctx"] = "ios"
-        s["last_app"] = "device"   # <- limpando app específico
+        s["last_app"] = "device"
         return jsonify({"replies": make_replies(IOS_MSG)})
 
-    # ===== Apps específicos SEM código (QR/MAC)
+    # Apps específicos (QR/MAC)
     if "duplecast" in m:
         s["ctx"] = "xcloud"
         s["last_app"] = "duplecast"
@@ -270,9 +300,8 @@ def responder():
         s["last_app"] = "ott"
         return jsonify({"replies": make_replies(OTT_STEPS)})
 
-    # ===== Confirmação de instalação → pede código certo
+    # Confirmação de instalação → pede código certo
     if any(k in m for k in KEY_CONFIRM):
-        # Só usa QR/MAC se o último passo foi app específico E ainda estamos em Xcloud
         if s.get("last_app") in {"duplecast","smartone","ott"} and s.get("ctx") == "xcloud":
             if s["last_app"] == "smartone":
                 return jsonify({"replies": make_replies(SMARTONE_STEPS)})
@@ -280,7 +309,6 @@ def responder():
                 return jsonify({"replies": make_replies(OTT_STEPS)})
             return jsonify({"replies": make_replies(DUPLECAST_STEPS)})
 
-        # Caso contrário, prioriza o DISPOSITIVO atual
         if s.get("ctx") == "xcloud":
             return jsonify({"replies": make_replies(["Ótimo! 🙌", "Digite **91** aqui na conversa para eu gerar seu *login de teste*. 😊"])})
         if s.get("ctx") == "android":
@@ -301,7 +329,7 @@ def responder():
 
     # ===== fallback com IA (mais livre, porém com trilhos)
     prompt = (
-        "Você é um atendente de IPTV no WhatsApp. Fale de forma humana, breve e empática, "
+        "Você é um atendente de IPTV no WhatsApp. Fale de forma humana, breve e empática; "
         "faça perguntas quando útil e resolva problemas proativamente. Use emojis com moderação.\n"
         "OBRIGATÓRIO: nunca recomende apps fora desta lista: Xtream IPTV Player, 9Xtream, XCIPTV, IPTV Stream Player, "
         "Xcloud (ícone verde e preto), OTT Player, Duplecast, SmartOne, Smarters Player Lite (iOS) e IPTV Smarters para PC.\n"
